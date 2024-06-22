@@ -9,7 +9,7 @@
     "dev": "bun install && concurrently --restart-tries=3 \"bun css\" \"nodemon --watch src --ext ts,tsx --exec 'bun run --hot src/server.tsx'\"",
     "prettier": "bunx prettier --write src/ test/ --plugin prettier-plugin-tailwindcss",
     "server": "bun run --hot src/server.tsx",
-    "test": "bun run test"
+    "test": "NODE_ENV=test bun run test"
   },
   "dependencies": {
     "@unocss/preset-web-fonts": "^0.61.0",
