@@ -20,7 +20,7 @@ app.get("/", async (c) => {
 
   return c.html(
     <Layout title="hyperwave">
-      <div class="flex flex-col items-center gap-4 p-4 min-h-screen text-sm">
+      <div class="flex flex-col items-center gap-2 p-4 min-h-screen text-md">
         <header class="w-full h-1/4 flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -46,7 +46,7 @@ app.get("/", async (c) => {
           hx-indicator="#loading-indicator"
           class="w-full"
         ></div>
-        <div id="loading-indicator" class="mt-4 text-center hidden">
+        <div id="loading-indicator" class="text-center hidden">
           <svg
             class="animate-spin h-5 w-5 text-blue-500"
             xmlns="http://www.w3.org/2000/svg"
@@ -87,24 +87,23 @@ app.get("/articles", async (c) => {
   const nextPage = page + 1;
 
   return c.html(
-    <>
+    <ul class="list-none m-0 p-0">
       {articles.map((article) => (
-        <div key={article.id} class="article-item p-4 border-b">
+        <li key={article.id} class="p-0 m-0 border-b list-none mb-3">
           <a href={article.link} class="text-blue-500 hover:underline">
             {article.title} [{article.source}]
           </a>
-        </div>
+        </li>
       ))}
       {articles.length > 0 && (
         <div
           hx-get={`/articles?page=${nextPage}`}
           hx-trigger="intersect once"
           hx-swap="beforeend"
-          class="mt-4"
           hx-indicator="#loading-indicator"
         ></div>
       )}
-    </>,
+    </ul>,
   );
 });
 
