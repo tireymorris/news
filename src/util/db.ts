@@ -6,10 +6,9 @@ const db = new Database(isTest ? "test_articles.db" : "articles.db");
 db.run(`
   CREATE TABLE IF NOT EXISTS articles (
     id TEXT PRIMARY KEY,
-    title TEXT,
+    title TEXT UNIQUE,
     link TEXT,
     source TEXT,
-    page INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);

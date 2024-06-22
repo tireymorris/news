@@ -2,16 +2,27 @@ import { load } from "cheerio";
 import { z } from "zod";
 import db from "./db";
 import { Article } from "../types";
+import shuffle from "./shuffle";
 
 const articleSchema = z.object({
-  title: z.string().min(5),
+  title: z
+    .string()
+    .refine((title) => title.split(" ").length >= 5, {
+      message: "Title must contain at least 5 words",
+    })
+    .refine(
+      (title) =>
+        !["Video Duration", "play", "play-inverse"].some((prefix) =>
+          title.startsWith(prefix),
+        ),
+    ),
   link: z.string().url(),
   source: z.string(),
 });
 
 type NewsSource = {
   name: string;
-  url: (page: number) => string;
+  url: string;
   listSelector: string;
   baseUrl?: string;
 };
@@ -19,13 +30,13 @@ type NewsSource = {
 const newsSources: NewsSource[] = [
   {
     name: "NPR",
-    url: (page: number) => `http://text.npr.org?page=${page}`,
+    url: `http://text.npr.org`,
     listSelector: "ul > li > a",
     baseUrl: "http://text.npr.org",
   },
   {
     name: "Al Jazeera",
-    url: (page: number) => `https://www.aljazeera.com/us-canada?page=${page}`,
+    url: `https://www.aljazeera.com/us-canada`,
     listSelector: "article .gc__content a",
     baseUrl: "https://www.aljazeera.com",
   },
@@ -52,6 +63,9 @@ const clearCacheIfNeeded = () => {
       (now.getTime() - articleDate.getTime()) / (1000 * 60 * 60);
 
     if (hoursDifference >= 8) {
+      if (process.env["DEBUG"] === "true") {
+        console.log("*** CLEARING CACHE");
+      }
       db.prepare("DELETE FROM articles").run();
     }
   }
@@ -59,22 +73,27 @@ const clearCacheIfNeeded = () => {
 
 const fetchArticlesFromSource = async (
   source: NewsSource,
-  page: number = 1,
   clearCache: () => void = clearCacheIfNeeded,
-) => {
+): Promise<Article[]> => {
   clearCache();
 
   const cachedArticles = db
-    .prepare("SELECT * FROM articles WHERE source = ? AND page = ?")
-    .all(source.name, page) as Article[];
+    .prepare("SELECT * FROM articles WHERE source = ?")
+    .all(source.name) as Article[];
 
   if (cachedArticles.length > 0) {
+    if (process.env["DEBUG"] === "true") {
+      console.log(`*** CACHE HIT: ${source.name}`);
+    }
     return cachedArticles;
   }
 
-  const response = await fetch(source.url(page));
+  const response = await fetch(source.url);
   const text = await response.text();
 
+  if (process.env["DEBUG"] === "true") {
+    console.log(`*** CACHE MISS: ${source.name}`);
+  }
   const $ = load(text);
   const articles: Article[] = [];
 
@@ -90,27 +109,14 @@ const fetchArticlesFromSource = async (
         title,
         link,
         source: source.name,
-        page,
         created_at: new Date().toISOString(),
       };
-      if (isValidArticle(article)) {
-        const existingArticle = db
-          .prepare("SELECT 1 FROM articles WHERE id = ?")
-          .get(title);
-
-        if (!existingArticle) {
-          articles.push(article);
-          db.prepare(
-            "INSERT INTO articles (id, title, link, source, page, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-          ).run(
-            article.id,
-            article.title,
-            article.link,
-            article.source,
-            article.page,
-            article.created_at,
-          );
+      if (!isValidArticle(article)) {
+        if (process.env["DEBUG"] === "true") {
+          console.log(`*** INVALID: ${source.name}: ${title} ${link}`);
         }
+      } else {
+        articles.push(article);
       }
     }
   });
@@ -118,8 +124,47 @@ const fetchArticlesFromSource = async (
   return articles;
 };
 
+const fetchAllArticles = async () => {
+  const allArticles: Article[] = [];
+
+  for (const source of newsSources) {
+    const fetchedArticles = await fetchArticlesFromSource(source);
+    allArticles.push(...fetchedArticles);
+  }
+
+  shuffle(allArticles);
+
+  const insert = db.prepare(
+    "INSERT INTO articles (id, title, link, source, created_at) VALUES (?, ?, ?, ?, ?)",
+  );
+
+  allArticles.forEach((article) => {
+    try {
+      insert.run(
+        article.id,
+        article.title,
+        article.link,
+        article.source,
+        article.created_at,
+      );
+    } catch (error) {
+      if (process.env["DEBUG"] === "true") {
+        console.log(`*** DUPLICATE: ${article.title}`);
+      }
+    }
+  });
+};
+
+const getCachedArticles = (offset: number, limit: number): Article[] => {
+  return db
+    .prepare("SELECT * FROM articles ORDER BY created_at DESC LIMIT ? OFFSET ?")
+    .all(limit, offset) as Article[];
+};
+
 export {
   fetchArticlesFromSource,
+  fetchAllArticles,
+  getCachedArticles,
   isValidArticle,
   newsSources,
   clearCacheIfNeeded,
