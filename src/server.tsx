@@ -8,6 +8,9 @@ import {
   isCacheValid,
 } from "./util/api";
 
+// Triggers long-running processes
+import "./schedule";
+
 const app = new Hono();
 
 app.use("/styles/*", serveStatic({ root: "./public/" }));
