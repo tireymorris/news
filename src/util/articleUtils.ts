@@ -1,6 +1,7 @@
 import db from "./db";
 import { Article } from "../types";
 import articleSchema from "./articleSchema";
+import { debug, log } from "./log";
 
 const isValidArticle = (article: Article) => {
   try {
@@ -8,15 +9,13 @@ const isValidArticle = (article: Article) => {
     return true;
   } catch (e) {
     if (process.env["DEBUG"] === "true") {
-      console.log(
-        `*** INVALID: ${article.source}: ${article.title} - ${e.errors.map((err: any) => err.message).join(", ")}`,
-      );
+      debug(`INVALID: ${article.source}: ${article.title} - ${e}`);
     }
     return false;
   }
 };
 
-const insertArticle = (article: Article) => {
+const insertArticle = (article: Article): boolean => {
   const insert = db.prepare(
     "INSERT INTO articles (id, title, link, source, created_at) VALUES (?, ?, ?, ?, ?)",
   );
@@ -35,15 +34,14 @@ const insertArticle = (article: Article) => {
         article.source,
         new Date().toISOString(),
       );
+      return true;
     } catch (error) {
-      if (process.env["DEBUG"] === "true") {
-        console.log(`*** ERROR: ${error.message}`);
-      }
+      debug(`ERROR: ${error}`);
+      return false;
     }
   } else {
-    if (process.env["DEBUG"] === "true") {
-      console.log(`*** DUPLICATE: ${article.title}`);
-    }
+    debug(`DUPLICATE: ${article.title}`);
+    return false;
   }
 };
 

@@ -4,6 +4,7 @@ import { Article } from "../types";
 import shuffle from "./shuffle";
 import { newsSources, NewsSource } from "./newsSources";
 import { isValidArticle, insertArticle } from "./articleUtils";
+import { debug, log } from "./log";
 
 const generateIdFromTitle = (title: string): string => {
   return Bun.hash(title).toString();
@@ -12,16 +13,12 @@ const generateIdFromTitle = (title: string): string => {
 const fetchArticlesFromSource = async (
   source: NewsSource,
 ): Promise<Article[]> => {
-  if (process.env["DEBUG"] === "true") {
-    console.log(`*** Fetching articles from: ${source.name}`);
-  }
+  log(`Fetching articles from: ${source.name}`);
 
   const response = await fetch(source.url);
   const text = await response.text();
 
-  if (process.env["DEBUG"] === "true") {
-    console.log(`*** FETCHING: ${source.name}`);
-  }
+  debug(`FETCHING: ${source.name}`);
   const $ = load(text);
   const articles: Article[] = [];
 
@@ -41,56 +38,38 @@ const fetchArticlesFromSource = async (
           created_at: new Date().toISOString(),
         };
         if (!isValidArticle(article)) {
-          if (process.env["DEBUG"] === "true") {
-            console.log(`*** INVALID: ${source.name}: ${title} ${link}`);
-          }
+          debug(`*** INVALID: ${source.name}: ${title} ${link}`);
         } else {
           articles.push(article);
-          if (process.env["DEBUG"] === "true") {
-            console.log(`*** VALID: ${source.name}: ${title} ${link}`);
-          }
+          debug(`*** VALID: ${source.name}: ${title} ${link}`);
         }
       } else {
-        if (process.env["DEBUG"] === "true") {
-          console.log(
-            `*** MISSING INFO: ${source.name}: ${title} ${relativeLink}`,
-          );
-        }
+        debug(`*** MISSING INFO: ${source.name}: ${title} ${relativeLink}`);
       }
     });
 
-  if (process.env["DEBUG"] === "true") {
-    console.log(`*** Fetched ${articles.length} articles from: ${source.name}`);
-  }
+  debug(`*** Fetched ${articles.length} articles from: ${source.name}`);
 
   return articles;
 };
 
-// Fetch articles from all sources
 const fetchAllArticles = async (): Promise<Article[]> => {
   const allArticles: Article[] = [];
 
   for (const source of newsSources) {
-    if (process.env["DEBUG"] === "true") {
-      console.log(`*** Fetching articles from all sources`);
-    }
     const fetchedArticles = await fetchArticlesFromSource(source);
     allArticles.push(...fetchedArticles);
   }
 
   shuffle(allArticles);
 
-  if (process.env["DEBUG"] === "true") {
-    console.log(`*** Total articles fetched: ${allArticles.length}`);
-  }
+  log(`Total articles fetched: ${allArticles.length}`);
 
   return allArticles;
 };
 
 const insertArticles = (articles: Article[]) => {
-  if (process.env["DEBUG"] === "true") {
-    console.log(`*** Inserting ${articles.length} articles into the database`);
-  }
+  log(`*** Inserting ${articles.length} articles into the database`);
   articles.forEach(insertArticle);
 };
 
@@ -99,11 +78,9 @@ const getCachedArticles = (
   limit: number,
   excludedIds: string[] = [],
 ): Article[] => {
-  if (process.env["DEBUG"] === "true") {
-    console.log(
-      `*** Getting cached articles with offset: ${offset}, limit: ${limit}, excluding IDs: ${excludedIds.join(", ")}`,
-    );
-  }
+  debug(
+    `Getting cached articles with offset: ${offset}, limit: ${limit}, excluding IDs: ${excludedIds.join(", ")}`,
+  );
   const articles = db
     .prepare(
       "SELECT * FROM articles WHERE id NOT IN ('" +
@@ -112,22 +89,17 @@ const getCachedArticles = (
     )
     .all(limit, offset) as Article[];
 
-  if (process.env["DEBUG"] === "true") {
-    console.log(`*** Retrieved ${articles.length} cached articles`);
-  }
+  debug(`*** Retrieved ${articles.length} cached articles`);
 
   return articles;
 };
 
-const fetchAndStoreArticles = async () => {
-  if (process.env["DEBUG"] === "true") {
-    console.log(`*** Fetching and storing articles`);
-  }
+const fetchAndStoreArticles = async (): Promise<Article[]> => {
+  debug(`Fetching and storing articles`);
   const allArticles = await fetchAllArticles();
-  insertArticles(allArticles);
-  if (process.env["DEBUG"] === "true") {
-    console.log(`*** Articles fetched and stored successfully`);
-  }
+  const insertedArticles = allArticles.filter(insertArticle);
+
+  return insertedArticles;
 };
 
 const isCacheValid = (): boolean => {
@@ -141,18 +113,12 @@ const isCacheValid = (): boolean => {
     const hoursDifference =
       (now.getTime() - articleDate.getTime()) / (1000 * 60 * 60);
 
-    if (process.env["DEBUG"] === "true") {
-      console.log(
-        `*** Cache validity checked. Hours difference: ${hoursDifference}`,
-      );
-    }
+    debug(`Cache validity checked. Hours difference: ${hoursDifference}`);
 
     return hoursDifference < 1;
   }
 
-  if (process.env["DEBUG"] === "true") {
-    console.log(`*** No articles in cache`);
-  }
+  debug(`No articles in cache`);
 
   return false;
 };
