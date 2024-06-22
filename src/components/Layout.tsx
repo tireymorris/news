@@ -27,7 +27,6 @@ function Layout({ title, children }: LayoutProps) {
         <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
         <EnableDarkMode />
       </head>
-      <style>{`* { box-sizing: border-box; margin: 0; outline: none; color: unset; }`}</style>
       <body className="font-lato m-0 bg-white dark:bg-gray-900 p-0 text-black dark:text-white">
         {children}
       </body>

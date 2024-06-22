@@ -93,7 +93,7 @@ app.get("/articles", async (c) => {
         <li key={article.id} class="p-0 m-0 border-b list-none mb-3">
           <a
             href={article.link}
-            class="text-blue-500 hover:underline visited:text-purple-600"
+            class="text-teal-500 hover:underline visited:text-purple-600"
           >
             {article.title} [{article.source}]
           </a>
