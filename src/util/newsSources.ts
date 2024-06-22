@@ -18,6 +18,12 @@ const newsSources: NewsSource[] = [
     listSelector: "article .gc__content a",
     baseUrl: "https://www.aljazeera.com",
   },
+  {
+    name: "CNN",
+    url: `http://lite.cnn.com`,
+    listSelector: "li.card--lite > a",
+    baseUrl: "http://lite.cnn.com",
+  },
 ];
 
 export { newsSources, NewsSource };

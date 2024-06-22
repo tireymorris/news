@@ -20,7 +20,7 @@ app.get("/", async (c) => {
 
   return c.html(
     <Layout title="hyperwave">
-      <div class="flex flex-col items-center gap-4 p-4 min-h-screen">
+      <div class="flex flex-col items-center gap-4 p-4 min-h-screen text-sm">
         <header class="w-full h-1/4 flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -36,7 +36,7 @@ app.get("/", async (c) => {
               d="M12 20h9M12 4h9m-9 8h9M4 8h16M4 16h16"
             />
           </svg>
-          <h1 class="text-5xl font-serif italic">Top Stories</h1>
+          <h1 class="text-3xl font-serif italic">Top Stories</h1>
         </header>
         <div
           id="articles"
@@ -90,7 +90,7 @@ app.get("/articles", async (c) => {
     <>
       {articles.map((article) => (
         <div key={article.id} class="article-item p-4 border-b">
-          <a href={article.link} class="text-blue-500 hover:underline text-xl">
+          <a href={article.link} class="text-blue-500 hover:underline">
             {article.title} [{article.source}]
           </a>
         </div>
