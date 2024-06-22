@@ -2,9 +2,11 @@ import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { logger } from "hono/logger";
 import Layout from "./components/Layout.tsx";
-import { fetchAllArticles } from "./util/api";
-import db from "./util/db";
-import { Article } from "./types.ts";
+import {
+  fetchAndStoreArticles,
+  getCachedArticles,
+  isCacheValid,
+} from "./util/api";
 
 const app = new Hono();
 
@@ -12,7 +14,9 @@ app.use("/styles/*", serveStatic({ root: "./public/" }));
 app.use("*", logger());
 
 app.get("/", async (c) => {
-  await fetchAllArticles();
+  if (!isCacheValid()) {
+    await fetchAndStoreArticles();
+  }
 
   return c.html(
     <Layout title="hyperwave">
@@ -74,9 +78,11 @@ app.get("/articles", async (c) => {
   const articlesPerPage = 5;
   const offset = (page - 1) * articlesPerPage;
 
-  const articles = db
-    .prepare("SELECT * FROM articles ORDER BY RANDOM() DESC LIMIT ? OFFSET ?")
-    .all(articlesPerPage, offset) as Article[];
+  if (!isCacheValid()) {
+    await fetchAndStoreArticles();
+  }
+
+  const articles = getCachedArticles(offset, articlesPerPage);
 
   const nextPage = page + 1;
 
