@@ -20,8 +20,8 @@ app.get("/", async (c) => {
 
   return c.html(
     <Layout title="hyperwave">
-      <div class="flex flex-col items-center gap-2 p-4 min-h-screen text-sm">
-        <header class="w-full h-1/4 flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg">
+      <div class="flex flex-col items-center gap-2 p-4 min-h-screen text-base">
+        <header class="w-full h-1/4 flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg mb-4">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -33,18 +33,19 @@ app.get("/", async (c) => {
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="2"
-              d="M12 20h9M12 4h9m-9 8h9M4 8h16M4 16h16"
+              d="M4 6h16M4 10h16M4 14h10M4 18h10M2 4v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4"
             />
           </svg>
           <h1 class="text-3xl font-serif italic">Top Stories</h1>
         </header>
+
         <div
           id="articles"
           hx-get="/articles?page=1"
           hx-trigger="load"
           hx-swap="beforeend"
           hx-indicator="#loading-indicator"
-          class="w-full"
+          class="w-full px-2"
         ></div>
         <div id="loading-indicator" class="text-center hidden">
           <svg
@@ -90,7 +91,10 @@ app.get("/articles", async (c) => {
     <ul class="list-none m-0 p-0">
       {articles.map((article) => (
         <li key={article.id} class="p-0 m-0 border-b list-none mb-3">
-          <a href={article.link} class="text-blue-500 hover:underline">
+          <a
+            href={article.link}
+            class="text-blue-500 hover:underline visited:text-purple-600"
+          >
             {article.title} [{article.source}]
           </a>
         </li>
