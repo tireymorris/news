@@ -9,7 +9,7 @@ type NewsSource = {
 const newsSources: NewsSource[] = [
   {
     name: "NPR",
-    url: `http://text.npr.org`,
+    url: "https://text.npr.org/1001",
     listSelector: "ul > li > a",
     baseUrl: "https://text.npr.org",
   },

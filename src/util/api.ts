@@ -3,18 +3,15 @@ import db from "./db";
 import { Article } from "../types";
 import shuffle from "./shuffle";
 import { newsSources, NewsSource } from "./newsSources";
-import {
-  isValidArticle,
-  insertArticle,
-  clearCacheIfNeeded,
-} from "./articleUtils";
+import { isValidArticle, insertArticle } from "./articleUtils";
+
+const generateIdFromTitle = (title: string): string => {
+  return Bun.hash(title).toString();
+};
 
 const fetchArticlesFromSource = async (
   source: NewsSource,
-  clearCache: () => void = clearCacheIfNeeded,
 ): Promise<Article[]> => {
-  clearCache();
-
   if (process.env["DEBUG"] === "true") {
     console.log(`*** Fetching articles from: ${source.name}`);
   }
@@ -37,7 +34,7 @@ const fetchArticlesFromSource = async (
       if (title && relativeLink) {
         const link = new URL(relativeLink, source.baseUrl).href;
         const article: Article = {
-          id: title,
+          id: generateIdFromTitle(title),
           title,
           link,
           source: source.name,
@@ -97,14 +94,22 @@ const insertArticles = (articles: Article[]) => {
   articles.forEach(insertArticle);
 };
 
-const getCachedArticles = (offset: number, limit: number): Article[] => {
+const getCachedArticles = (
+  offset: number,
+  limit: number,
+  excludedIds: string[] = [],
+): Article[] => {
   if (process.env["DEBUG"] === "true") {
     console.log(
-      `*** Getting cached articles with offset: ${offset}, limit: ${limit}`,
+      `*** Getting cached articles with offset: ${offset}, limit: ${limit}, excluding IDs: ${excludedIds.join(", ")}`,
     );
   }
   const articles = db
-    .prepare("SELECT * FROM articles ORDER BY RANDOM() DESC LIMIT ? OFFSET ?")
+    .prepare(
+      "SELECT * FROM articles WHERE id NOT IN ('" +
+        excludedIds.join("','") +
+        "') ORDER BY created_at DESC LIMIT ? OFFSET ?",
+    )
     .all(limit, offset) as Article[];
 
   if (process.env["DEBUG"] === "true") {
@@ -126,12 +131,12 @@ const fetchAndStoreArticles = async () => {
 };
 
 const isCacheValid = (): boolean => {
-  const oldestArticle = db
-    .prepare("SELECT created_at FROM articles ORDER BY created_at ASC LIMIT 1")
+  const newestArticle = db
+    .prepare("SELECT created_at FROM articles ORDER BY created_at DESC LIMIT 1")
     .get() as { created_at: string } | undefined;
 
-  if (oldestArticle) {
-    const articleDate = new Date(oldestArticle.created_at);
+  if (newestArticle) {
+    const articleDate = new Date(newestArticle.created_at);
     const now = new Date();
     const hoursDifference =
       (now.getTime() - articleDate.getTime()) / (1000 * 60 * 60);
@@ -142,7 +147,7 @@ const isCacheValid = (): boolean => {
       );
     }
 
-    return hoursDifference < 8;
+    return hoursDifference < 1;
   }
 
   if (process.env["DEBUG"] === "true") {
@@ -160,5 +165,4 @@ export {
   fetchAndStoreArticles,
   isCacheValid,
   newsSources,
-  clearCacheIfNeeded,
 };

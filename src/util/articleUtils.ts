@@ -33,7 +33,7 @@ const insertArticle = (article: Article) => {
         article.title,
         article.link,
         article.source,
-        article.created_at,
+        new Date().toISOString(),
       );
     } catch (error) {
       if (process.env["DEBUG"] === "true") {
@@ -47,24 +47,4 @@ const insertArticle = (article: Article) => {
   }
 };
 
-const clearCacheIfNeeded = () => {
-  const oldestArticle = db
-    .prepare("SELECT created_at FROM articles ORDER BY created_at ASC LIMIT 1")
-    .get() as { created_at: string } | undefined;
-
-  if (oldestArticle) {
-    const articleDate = new Date(oldestArticle.created_at);
-    const now = new Date();
-    const hoursDifference =
-      (now.getTime() - articleDate.getTime()) / (1000 * 60 * 60);
-
-    if (hoursDifference >= 8) {
-      if (process.env["DEBUG"] === "true") {
-        console.log("*** CLEARING CACHE");
-      }
-      db.prepare("DELETE FROM articles").run();
-    }
-  }
-};
-
-export { isValidArticle, insertArticle, clearCacheIfNeeded };
+export { isValidArticle, insertArticle };
