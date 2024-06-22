@@ -3,6 +3,7 @@ type NewsSource = {
   url: string;
   listSelector: string;
   baseUrl?: string;
+  limit?: number;
 };
 
 const newsSources: NewsSource[] = [
@@ -23,6 +24,7 @@ const newsSources: NewsSource[] = [
     url: `http://lite.cnn.com`,
     listSelector: "li.card--lite > a",
     baseUrl: "http://lite.cnn.com",
+    limit: 20,
   },
 ];
 

@@ -28,37 +28,39 @@ const fetchArticlesFromSource = async (
   const $ = load(text);
   const articles: Article[] = [];
 
-  $(source.listSelector).each((_, element) => {
-    const title = $(element).text().trim();
-    const relativeLink = $(element).attr("href");
+  $(source.listSelector)
+    .slice(0, source.limit || 100)
+    .each((_, element) => {
+      const title = $(element).text().trim();
+      const relativeLink = $(element).attr("href");
 
-    if (title && relativeLink) {
-      const link = new URL(relativeLink, source.baseUrl).href;
-      const article: Article = {
-        id: title,
-        title,
-        link,
-        source: source.name,
-        created_at: new Date().toISOString(),
-      };
-      if (!isValidArticle(article)) {
-        if (process.env["DEBUG"] === "true") {
-          console.log(`*** INVALID: ${source.name}: ${title} ${link}`);
+      if (title && relativeLink) {
+        const link = new URL(relativeLink, source.baseUrl).href;
+        const article: Article = {
+          id: title,
+          title,
+          link,
+          source: source.name,
+          created_at: new Date().toISOString(),
+        };
+        if (!isValidArticle(article)) {
+          if (process.env["DEBUG"] === "true") {
+            console.log(`*** INVALID: ${source.name}: ${title} ${link}`);
+          }
+        } else {
+          articles.push(article);
+          if (process.env["DEBUG"] === "true") {
+            console.log(`*** VALID: ${source.name}: ${title} ${link}`);
+          }
         }
       } else {
-        articles.push(article);
         if (process.env["DEBUG"] === "true") {
-          console.log(`*** VALID: ${source.name}: ${title} ${link}`);
+          console.log(
+            `*** MISSING INFO: ${source.name}: ${title} ${relativeLink}`,
+          );
         }
       }
-    } else {
-      if (process.env["DEBUG"] === "true") {
-        console.log(
-          `*** MISSING INFO: ${source.name}: ${title} ${relativeLink}`,
-        );
-      }
-    }
-  });
+    });
 
   if (process.env["DEBUG"] === "true") {
     console.log(`*** Fetched ${articles.length} articles from: ${source.name}`);

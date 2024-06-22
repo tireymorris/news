@@ -20,7 +20,7 @@ app.get("/", async (c) => {
 
   return c.html(
     <Layout title="hyperwave">
-      <div class="flex flex-col items-center gap-2 p-4 min-h-screen text-md">
+      <div class="flex flex-col items-center gap-2 p-4 min-h-screen text-sm">
         <header class="w-full h-1/4 flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -75,7 +75,7 @@ app.get("/", async (c) => {
 
 app.get("/articles", async (c) => {
   const page = parseInt(c.req.query("page") || "1");
-  const articlesPerPage = 5;
+  const articlesPerPage = 15;
   const offset = (page - 1) * articlesPerPage;
 
   if (!isCacheValid()) {
