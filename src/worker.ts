@@ -1,18 +1,18 @@
 import { fetchAndStoreArticles } from "./util/api";
 import sendTelegramMessage from "./util/sendTelegramMessage";
 import { newsSources } from "./util/newsSources";
-import { log } from "./util/log";
+import { debug } from "./util/log";
 
 const scheduleArticleUpdate = async () => {
   try {
     const articles = await fetchAndStoreArticles();
     const successMessage = generateSuccessMessage(articles);
-    log(successMessage);
+    debug(successMessage);
     if (articles.length > 0) await sendTelegramMessage(successMessage);
-    else log("No new articles found");
+    else debug("No new articles found");
   } catch (error) {
     const errorMessage = `Error fetching articles: ${JSON.stringify(error, null, 2)}`;
-    log(errorMessage);
+    debug(errorMessage);
     await sendTelegramMessage(errorMessage);
   }
 };
@@ -33,29 +33,15 @@ const generateSuccessMessage = (articles: any[]) => {
   return `Articles fetched and stored successfully.\n\n${articleCounts}\n\nVisit: https://hyperwave.codes`;
 };
 
-const runEveryQuarterHour = () => {
+const runEveryMinute = () => {
   const now = new Date();
-  const minutes = now.getMinutes();
-  const seconds = now.getSeconds();
-  const milliseconds = now.getMilliseconds();
-  const nextRunInMilliseconds =
-    (15 - (minutes % 15)) * 60 * 1000 - seconds * 1000 - milliseconds;
+  const millisecondsUntilNextMinute =
+    60000 - (now.getSeconds() * 1000 + now.getMilliseconds());
 
   setTimeout(() => {
     scheduleArticleUpdate();
-    setInterval(
-      () => {
-        const now = new Date();
-        const nextRunInMilliseconds =
-          (15 - (now.getMinutes() % 15)) * 60 * 1000 -
-          now.getSeconds() * 1000 -
-          now.getMilliseconds();
-        scheduleArticleUpdate();
-        setTimeout(runEveryQuarterHour, nextRunInMilliseconds);
-      },
-      1000 * 60 * 15,
-    );
-  }, nextRunInMilliseconds);
+    setInterval(scheduleArticleUpdate, 60000);
+  }, millisecondsUntilNextMinute);
 };
 
-runEveryQuarterHour();
+runEveryMinute();
