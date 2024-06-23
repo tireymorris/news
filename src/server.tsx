@@ -21,7 +21,7 @@ app.get("/", async (c) => {
   return c.html(
     <Layout title="hyperwave">
       <div class="flex flex-col items-center gap-2 p-4 min-h-screen text-base">
-        <header class="w-full h-1/4 flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg mb-4">
+        <header class="w-full h-1/4 flex items-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg mb-4 pl-4">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -36,7 +36,7 @@ app.get("/", async (c) => {
               d="M4 6h16M4 10h16M4 14h10M4 18h10M2 4v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4"
             />
           </svg>
-          <h1 class="text-3xl font-serif italic">🌊hyperwave news</h1>
+          <h1 class="text-3xl font-serif italic">hyperwave news</h1>
         </header>
 
         <div
