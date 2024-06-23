@@ -7,27 +7,22 @@ import {
   getCachedArticles,
   isCacheValid,
 } from "./util/api";
-import db from "./util/db";
+import formatRelativeTime, { getLastUpdatedTimestamp } from "./util/time.ts";
 
 const app = new Hono();
 
 app.use("/styles/*", serveStatic({ root: "./public/" }));
 app.use("*", logger());
 
-const getLastUpdatedTimestamp = () => {
-  const result = db
-    .prepare("SELECT created_at FROM articles ORDER BY created_at DESC LIMIT 1")
-    .get() as { created_at: string } | undefined;
-
-  return result ? new Date(result.created_at).toLocaleString() : null;
-};
-
 app.get("/", async (c) => {
   if (!isCacheValid()) {
     await fetchAndStoreArticles();
   }
 
-  const lastUpdated = getLastUpdatedTimestamp();
+  const lastUpdatedDate = getLastUpdatedTimestamp();
+  const lastUpdated = lastUpdatedDate
+    ? formatRelativeTime(lastUpdatedDate)
+    : null;
 
   return c.html(
     <Layout title="hyperwave">
