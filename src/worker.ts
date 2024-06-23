@@ -32,7 +32,7 @@ const generateSuccessMessage = (articles: any[]) => {
   return `Articles fetched and stored successfully.\n\n${articleCounts}\n\nVisit: https://hyperwave.codes`;
 };
 
-// Run import every 15 minutes, unless someone gets mad
-setInterval(scheduleArticleUpdate, 1000 * 60 * 15);
+// Run import every hour
+setInterval(scheduleArticleUpdate, 1000 * 60 * 60 * 1);
 
 scheduleArticleUpdate();

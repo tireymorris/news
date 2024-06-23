@@ -24,7 +24,13 @@ const newsSources: NewsSource[] = [
     url: `http://lite.cnn.com`,
     listSelector: "li.card--lite > a",
     baseUrl: "http://lite.cnn.com",
-    limit: 20,
+    limit: 7,
+  },
+  {
+    name: "NewsNation",
+    url: `https://www.newsnationnow.com`,
+    listSelector: "a",
+    baseUrl: "https://www.newsnationnow.com",
   },
 ];
 
