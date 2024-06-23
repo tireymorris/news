@@ -10,7 +10,6 @@
     "db": "bun run src/db.ts",
     "dev": "bun install && concurrently --restart-tries=3 \"bun css:watch\" \"bun server:watch\" \"bun worker\"",
     "prettier": "bunx prettier --write src/ test/ --plugin prettier-plugin-tailwindcss",
-    "pull": "git pull && bun run build && pm2 restart all",
     "server:watch": "nodemon --watch src --ext ts,tsx --exec 'bun run --hot src/server.tsx'",
     "start": "bun run build && pm2 start; pm2 reload all --update-env",
     "start:debug": "DEBUG=true bun run build && pm2 start; pm2 reload all --update-env",
