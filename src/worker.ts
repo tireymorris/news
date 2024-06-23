@@ -9,6 +9,7 @@ const scheduleArticleUpdate = async () => {
     const successMessage = generateSuccessMessage(articles);
     log(successMessage);
     if (articles.length > 0) await sendTelegramMessage(successMessage);
+    else log("No new articles found");
   } catch (error) {
     const errorMessage = `Error fetching articles: ${JSON.stringify(error, null, 2)}`;
     log(errorMessage);
