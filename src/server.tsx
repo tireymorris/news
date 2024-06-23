@@ -44,31 +44,8 @@ app.get("/", async (c) => {
           hx-get="/articles?page=1"
           hx-trigger="load"
           hx-swap="beforeend"
-          hx-indicator="#loading-indicator"
           class="w-full px-2"
         ></div>
-        <div id="loading-indicator" class="text-center hidden">
-          <svg
-            class="animate-spin h-5 w-5 text-blue-500"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              class="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            ></circle>
-            <path
-              class="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zM12 16a4 4 0 100-8 4 4 0 000 8z"
-            ></path>
-          </svg>
-        </div>
       </div>
     </Layout>,
   );
@@ -104,7 +81,6 @@ app.get("/articles", async (c) => {
           hx-get={`/articles?page=${nextPage}`}
           hx-trigger="intersect once"
           hx-swap="beforeend"
-          hx-indicator="#loading-indicator"
         ></div>
       )}
     </ul>,
