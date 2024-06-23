@@ -36,7 +36,7 @@ app.get("/", async (c) => {
               d="M4 6h16M4 10h16M4 14h10M4 18h10M2 4v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4"
             />
           </svg>
-          <h1 class="text-3xl font-serif italic">Top Stories</h1>
+          <h1 class="text-3xl font-serif italic">🌊hyperwave news</h1>
         </header>
 
         <div
