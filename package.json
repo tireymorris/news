@@ -8,7 +8,7 @@
     "build:worker": "bun build --compile ./src/worker.ts --outfile ./dist/worker",
     "css:watch": "unocss --watch \"src/**/*.tsx\" -o public/styles/uno.css",
     "db": "bun run src/db.ts",
-    "dev": "bun install && concurrently --restart-tries=3 \"bun css:watch\" \"bun server:watch\" \"bun worker\"",
+    "dev": "bun install && DEBUG=true concurrently --restart-tries=3 \"bun css:watch\" \"bun server:watch\" \"bun worker\"",
     "prettier": "bunx prettier --write src/ test/ --plugin prettier-plugin-tailwindcss",
     "server:watch": "nodemon --watch src --ext ts,tsx --exec 'bun run --hot src/server.tsx'",
     "start": "bun run build && pm2 start; pm2 reload all --update-env",

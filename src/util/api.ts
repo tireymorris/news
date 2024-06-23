@@ -1,10 +1,9 @@
 import { load } from "cheerio";
-import db from "./db";
-import { Article } from "../types";
-import shuffle from "./shuffle";
-import { newsSources, NewsSource } from "./newsSources";
-import { isValidArticle, insertArticle } from "./articleUtils";
-import { debug, log } from "./log";
+import db from "./db.ts";
+import { Article } from "../types.ts";
+import { newsSources, NewsSource } from "./newsSources.ts";
+import { isValidArticle, insertArticle } from "./articleUtils.ts";
+import { debug, log } from "./log.ts";
 
 const generateIdFromTitle = (title: string): string => {
   return Bun.hash(title).toString();
@@ -61,8 +60,6 @@ const fetchAllArticles = async (): Promise<Article[]> => {
     allArticles.push(...fetchedArticles);
   }
 
-  shuffle(allArticles);
-
   log(`Total articles fetched: ${allArticles.length}`);
 
   return allArticles;
@@ -73,22 +70,15 @@ const insertArticles = (articles: Article[]) => {
   articles.forEach(insertArticle);
 };
 
-const getCachedArticles = (
-  offset: number,
-  limit: number,
-  excludedIds: string[] = [],
-): Article[] => {
-  debug(
-    `Getting cached articles with offset: ${offset}, limit: ${limit}, excluding IDs: ${excludedIds.join(", ")}`,
-  );
-  const articles = db
-    .prepare(
-      "SELECT * FROM articles WHERE id NOT IN ('" +
-        excludedIds.join("','") +
-        "') ORDER BY created_at DESC LIMIT ? OFFSET ?",
-    )
-    .all(limit, offset) as Article[];
+const getCachedArticles = (offset: number, limit: number): Article[] => {
+  debug(`Getting cached articles with offset: ${offset}, limit: ${limit}`);
 
+  const query = `
+    SELECT * FROM articles 
+    ORDER BY created_at DESC 
+    LIMIT ? OFFSET ?`;
+
+  const articles = db.prepare(query).all(limit, offset) as Article[];
   debug(`*** Retrieved ${articles.length} cached articles`);
 
   return articles;
@@ -97,30 +87,28 @@ const getCachedArticles = (
 const fetchAndStoreArticles = async (): Promise<Article[]> => {
   debug(`Fetching and storing articles`);
   const allArticles = await fetchAllArticles();
-  const insertedArticles = allArticles.filter(insertArticle);
 
-  return insertedArticles;
-};
+  const existingTitles = new Set(
+    db
+      .prepare("SELECT title FROM articles")
+      .all()
+      .map((row: any) => row.title),
+  );
 
-const isCacheValid = (): boolean => {
-  const newestArticle = db
-    .prepare("SELECT created_at FROM articles ORDER BY created_at DESC LIMIT 1")
-    .get() as { created_at: string } | undefined;
+  const newArticles = allArticles.filter(
+    (article) => !existingTitles.has(article.title),
+  );
 
-  if (newestArticle) {
-    const articleDate = new Date(newestArticle.created_at);
-    const now = new Date();
-    const hoursDifference =
-      (now.getTime() - articleDate.getTime()) / (1000 * 60 * 60);
-
-    debug(`Cache validity checked. Hours difference: ${hoursDifference}`);
-
-    return hoursDifference < 1;
+  if (newArticles.length === 0) {
+    debug(
+      "All fetched articles already exist in the database. Skipping insertion.",
+    );
+    return [];
   }
 
-  debug(`No articles in cache`);
+  const insertedArticles = newArticles.filter(insertArticle);
 
-  return false;
+  return insertedArticles;
 };
 
 export {
@@ -129,6 +117,4 @@ export {
   insertArticles,
   getCachedArticles,
   fetchAndStoreArticles,
-  isCacheValid,
-  newsSources,
 };
