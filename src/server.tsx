@@ -7,16 +7,27 @@ import {
   getCachedArticles,
   isCacheValid,
 } from "./util/api";
+import db from "./util/db";
 
 const app = new Hono();
 
 app.use("/styles/*", serveStatic({ root: "./public/" }));
 app.use("*", logger());
 
+const getLastUpdatedTimestamp = () => {
+  const result = db
+    .prepare("SELECT created_at FROM articles ORDER BY created_at DESC LIMIT 1")
+    .get() as { created_at: string } | undefined;
+
+  return result ? new Date(result.created_at).toLocaleString() : null;
+};
+
 app.get("/", async (c) => {
   if (!isCacheValid()) {
     await fetchAndStoreArticles();
   }
+
+  const lastUpdated = getLastUpdatedTimestamp();
 
   return c.html(
     <Layout title="hyperwave">
@@ -36,7 +47,12 @@ app.get("/", async (c) => {
               d="M4 6h16M4 10h16M4 14h10M4 18h10M2 4v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4"
             />
           </svg>
-          <h1 class="text-3xl font-serif italic">hyperwave news</h1>
+          <div class="flex flex-col">
+            <h1 class="text-3xl font-serif italic">hyperwave news</h1>
+            {lastUpdated && (
+              <p class="text-sm mt-1">Last updated: {lastUpdated}</p>
+            )}
+          </div>
         </header>
 
         <div
