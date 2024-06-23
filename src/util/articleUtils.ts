@@ -1,7 +1,7 @@
 import db from "./db";
 import { Article } from "../types";
 import articleSchema from "./articleSchema";
-import { debug, log } from "./log";
+import { debug } from "./log";
 
 const isValidArticle = (article: Article) => {
   try {
