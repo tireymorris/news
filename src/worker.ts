@@ -32,7 +32,29 @@ const generateSuccessMessage = (articles: any[]) => {
   return `Articles fetched and stored successfully.\n\n${articleCounts}\n\nVisit: https://hyperwave.codes`;
 };
 
-// Run import every hour
-setInterval(scheduleArticleUpdate, 1000 * 60 * 60 * 1);
+const runEveryQuarterHour = () => {
+  const now = new Date();
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+  const milliseconds = now.getMilliseconds();
+  const nextRunInMilliseconds =
+    (15 - (minutes % 15)) * 60 * 1000 - seconds * 1000 - milliseconds;
 
-scheduleArticleUpdate();
+  setTimeout(() => {
+    scheduleArticleUpdate();
+    setInterval(
+      () => {
+        const now = new Date();
+        const nextRunInMilliseconds =
+          (15 - (now.getMinutes() % 15)) * 60 * 1000 -
+          now.getSeconds() * 1000 -
+          now.getMilliseconds();
+        scheduleArticleUpdate();
+        setTimeout(runEveryQuarterHour, nextRunInMilliseconds);
+      },
+      1000 * 60 * 15,
+    );
+  }, nextRunInMilliseconds);
+};
+
+runEveryQuarterHour();
