@@ -7,9 +7,12 @@ const scheduleArticleUpdate = async () => {
   try {
     const articles = await fetchAndStoreArticles();
     const successMessage = generateSuccessMessage(articles);
-    debug(successMessage);
-    if (articles.length > 0) await sendTelegramMessage(successMessage);
-    else debug("No new articles found");
+    if (articles.length > 0) {
+      await sendTelegramMessage(successMessage);
+      debug(successMessage);
+    } else {
+      debug("No new articles found");
+    }
   } catch (error) {
     const errorMessage = `Error fetching articles: ${JSON.stringify(error, null, 2)}`;
     debug(errorMessage);
@@ -30,7 +33,7 @@ const generateSuccessMessage = (articles: any[]) => {
     .map((source) => `${source.name}: ${counts[source.name] || 0}`)
     .join("\n");
 
-  return `Articles fetched and stored successfully.\n\n${articleCounts}\n\nVisit: https://hyperwave.codes`;
+  return `Articles fetched and stored successfully.\n\n${articleCounts}\n\nVisit: https://hyperwave.news`;
 };
 
 const runEveryMinute = () => {
