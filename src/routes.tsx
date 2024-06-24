@@ -1,8 +1,7 @@
 import { Hono } from "hono";
 import { getCachedArticles } from "./util/api.ts";
-import formatRelativeTime, { getLastUpdatedTimestamp } from "./util/time.ts";
+import { formatRelativeTime, getLastUpdatedTimestamp } from "./util/time.ts";
 import Layout from "./components/Layout.tsx";
-import db from "./util/db.ts";
 import { debug } from "./util/log.ts";
 
 export const routes = (app: Hono) => {
@@ -36,7 +35,12 @@ export const routes = (app: Hono) => {
 
     debug("Page:", page);
 
-    const articles = getCachedArticles(offset, articlesPerPage);
+    const articles = getCachedArticles(offset, articlesPerPage).map(
+      (article) => ({
+        ...article,
+        relativeDate: formatRelativeTime(new Date(article.created_at)),
+      }),
+    );
     debug("Articles retrieved:", articles.length);
 
     const nextPage = page + 1;
@@ -52,8 +56,7 @@ export const routes = (app: Hono) => {
               {article.title}
             </a>
             <div class="text-gray-500 text-sm">
-              {new Date(article.created_at).toLocaleDateString()} -{" "}
-              {article.source}
+              {article.relativeDate} - {article.source}
             </div>
           </li>
         ))}
