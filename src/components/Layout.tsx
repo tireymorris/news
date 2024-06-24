@@ -1,5 +1,5 @@
-import EnableDarkMode from "../util/EnableDarkMode";
-import Header from "./Header";
+import EnableDarkMode from "util/EnableDarkMode";
+import Header from "components/Header";
 
 type LayoutProps = {
   title: string;

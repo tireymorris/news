@@ -1,7 +1,7 @@
-import { fetchAndStoreArticles } from "./util/api";
-import sendTelegramMessage from "./util/sendTelegramMessage";
-import { newsSources } from "./util/newsSources";
-import { debug } from "./util/log";
+import { fetchAndStoreArticles } from "models/article";
+import { debug } from "util/log";
+import { newsSources } from "util/newsSources";
+import sendTelegramMessage from "util/sendTelegramMessage";
 
 const scheduleArticleUpdate = async () => {
   try {
@@ -30,6 +30,7 @@ const generateSuccessMessage = (articles: any[]) => {
   );
 
   const articleCounts = newsSources
+    .filter((source) => counts[source.name] > 0)
     .map((source) => `${source.name}: ${counts[source.name] || 0}`)
     .join("\n");
 

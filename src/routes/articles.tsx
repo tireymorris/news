@@ -1,31 +1,9 @@
 import { Hono } from "hono";
-import { getCachedArticles } from "./util/api.ts";
-import { formatRelativeTime, getLastUpdatedTimestamp } from "./util/time.ts";
-import Layout from "./components/Layout.tsx";
-import { debug } from "./util/log.ts";
+import { getCachedArticles } from "models/article";
+import { debug } from "util/log";
+import { formatRelativeTime } from "util/time";
 
-export const routes = (app: Hono) => {
-  app.get("/", async (c) => {
-    const lastUpdatedDate = getLastUpdatedTimestamp();
-    const lastUpdated = lastUpdatedDate
-      ? formatRelativeTime(lastUpdatedDate)
-      : null;
-
-    return c.html(
-      <Layout title="hyperwave" lastUpdated={lastUpdated}>
-        <div class="flex flex-col items-center gap-2 p-4 min-h-screen text-base">
-          <div
-            id="articles"
-            hx-get="/articles?page=1"
-            hx-trigger="load"
-            hx-swap="beforeend"
-            class="w-full px-2"
-          ></div>
-        </div>
-      </Layout>,
-    );
-  });
-
+export default function articlesRoutes(app: Hono) {
   app.get("/articles", async (c) => {
     debug("GET /articles - Start");
 
@@ -70,4 +48,4 @@ export const routes = (app: Hono) => {
       </ul>,
     );
   });
-};
+}

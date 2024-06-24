@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll } from "bun:test";
-import { fetchArticlesFromSource } from "../src/util/api";
-import db from "../src/util/db";
+import db from "../src/db";
 import { newsSources } from "../src/util/newsSources";
+import { fetchArticlesFromSource } from "../src/util/crawler";
 
 beforeAll(() => {
   db.run("DELETE FROM articles");
