@@ -83,6 +83,7 @@
 .text-white,
 [text-white=""]{--un-text-opacity:1;color:rgb(255 255 255 / var(--un-text-opacity));}
 .text-black{--un-text-opacity:1;color:rgb(0 0 0 / var(--un-text-opacity));}
+.text-gray-500{--un-text-opacity:1;color:rgb(107 114 128 / var(--un-text-opacity));}
 .text-neutral-500{--un-text-opacity:1;color:rgb(115 115 115 / var(--un-text-opacity));}
 .text-slate-900{--un-text-opacity:1;color:rgb(15 23 42 / var(--un-text-opacity));}
 .text-teal-500{--un-text-opacity:1;color:rgb(20 184 166 / var(--un-text-opacity));}

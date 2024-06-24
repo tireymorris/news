@@ -51,6 +51,9 @@ export const routes = (app: Hono) => {
             >
               {article.title} [{article.source}]
             </a>
+            <div class="text-gray-500 text-sm">
+              {new Date(article.created_at).toLocaleDateString()}
+            </div>
           </li>
         ))}
         {articles.length > 0 && (
