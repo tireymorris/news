@@ -44,15 +44,16 @@ export const routes = (app: Hono) => {
     return c.html(
       <ul class="list-none m-0 p-0">
         {articles.map((article) => (
-          <li key={article.id} class="p-0 m-0 border-b list-none mb-3">
+          <li key={article.id} class="p-0 m-0 border-b list-none mb-1">
             <a
               href={article.link}
               class="text-teal-500 hover:underline visited:text-purple-600"
             >
-              {article.title} [{article.source}]
+              {article.title}
             </a>
             <div class="text-gray-500 text-sm">
-              {new Date(article.created_at).toLocaleDateString()}
+              {new Date(article.created_at).toLocaleDateString()} -{" "}
+              {article.source}
             </div>
           </li>
         ))}
