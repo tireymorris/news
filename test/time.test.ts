@@ -6,7 +6,7 @@ import {
   DAYS,
   WEEKS,
   formatRelativeTime,
-} from "../src/util/time";
+} from "util/time";
 
 describe("formatRelativeTime", () => {
   it('should display "a few seconds ago" when delta is less than a minute', () => {

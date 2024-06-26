@@ -40,10 +40,10 @@ export const insertArticle = (article: Article): boolean => {
   );
 
   const checkExistence = db.prepare(
-    "SELECT COUNT(*) as count FROM articles WHERE title = ?",
+    "SELECT COUNT(*) as count FROM articles WHERE link = ?",
   );
 
-  const result = checkExistence.get(article.title) as { count: number };
+  const result = checkExistence.get(article.link) as { count: number };
   if (result.count === 0) {
     try {
       insert.run(
@@ -59,7 +59,7 @@ export const insertArticle = (article: Article): boolean => {
       return false;
     }
   } else {
-    debug(`DUPLICATE: ${article.title}`);
+    debug(`DUPLICATE: ${article.link}`);
     return false;
   }
 };
@@ -82,24 +82,24 @@ export const fetchAndStoreArticles = async (): Promise<Article[]> => {
   debug(`Fetching and storing articles`);
   const allArticles = await fetchAllArticles();
 
-  const fetchedTitles = allArticles.map((article) => article.title);
+  const fetchedLinks = allArticles.map((article) => article.link);
 
-  if (fetchedTitles.length === 0) {
+  if (fetchedLinks.length === 0) {
     debug("No articles fetched.");
     return [];
   }
 
-  const placeholders = fetchedTitles.map(() => "?").join(",");
-  const existingTitlesResult = db
-    .prepare(`SELECT title FROM articles WHERE title IN (${placeholders})`)
-    .all(...fetchedTitles);
+  const placeholders = fetchedLinks.map(() => "?").join(",");
+  const existingLinksResult = db
+    .prepare(`SELECT link FROM articles WHERE link IN (${placeholders})`)
+    .all(...fetchedLinks);
 
-  const existingTitles = new Set(
-    existingTitlesResult.map((row: any) => row.title),
+  const existingLinks = new Set(
+    existingLinksResult.map((row: any) => row.link),
   );
 
   const newArticles = allArticles.filter(
-    (article) => !existingTitles.has(article.title),
+    (article) => !existingLinks.has(article.link),
   );
 
   if (newArticles.length === 0) {
