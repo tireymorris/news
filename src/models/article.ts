@@ -8,8 +8,8 @@ import { fetchArticlesFromSource } from "util/crawler";
 export const articleSchema = z.object({
   title: z
     .string()
-    .refine((title) => title.split(" ").length >= 7, {
-      message: "Title must contain at least 7 words",
+    .refine((title) => title.split(" ").length >= 3, {
+      message: "Title must contain at least 3 words",
     })
     .refine(
       (title) =>
