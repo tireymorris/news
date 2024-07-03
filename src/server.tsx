@@ -30,15 +30,6 @@ app.get("/", async (c) => {
           offset="0"
           class="w-full px-2"
         ></div>
-        <div
-          method="GET"
-          href="/articles"
-          trigger="scroll"
-          target="#articles"
-          limit="15"
-          offset="15"
-          class="w-full"
-        ></div>
       </div>
     </Layout>,
   );

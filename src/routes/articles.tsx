@@ -7,18 +7,16 @@ export default function articlesRoutes(app: Hono) {
   app.get("/articles", async (c) => {
     debug("GET /articles - Start");
 
-    const page = parseInt(c.req.query("page") || "1");
-    const articlesPerPage = 25;
-    const offset = (page - 1) * articlesPerPage;
+    const offset = parseInt(c.req.query("offset") || "0", 10);
+    const limit = parseInt(c.req.query("limit") || "25", 10);
 
-    debug("Page:", page);
+    debug("Offset:", offset);
+    debug("Limit:", limit);
 
-    const articles = getCachedArticles(offset, articlesPerPage).map(
-      (article) => ({
-        ...article,
-        relativeDate: formatRelativeTime(new Date(article.created_at)),
-      }),
-    );
+    const articles = getCachedArticles(offset, limit).map((article) => ({
+      ...article,
+      relativeDate: formatRelativeTime(new Date(article.created_at)),
+    }));
 
     debug("Articles retrieved:", articles.length);
 

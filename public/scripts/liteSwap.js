@@ -1,4 +1,4 @@
-DEBUG = false;
+DEBUG = true;
 
 document.addEventListener("DOMContentLoaded", () => {
   const log = (type, ...args) => DEBUG && console[type](`liteSwap:`, ...args);
@@ -28,11 +28,43 @@ document.addEventListener("DOMContentLoaded", () => {
     attachLiteSwap(targetElement);
   };
 
+  const createRequestHandler = (
+    element,
+    { href, method, targetElement, limit, offset, paginationEnabled },
+  ) => {
+    const requestOptions = {
+      method: method.toUpperCase(),
+      headers: { Accept: "text/html" },
+    };
+
+    const makeRequest = async () => {
+      let url = href;
+      if (paginationEnabled) {
+        const urlObj = new URL(href, window.location.origin);
+        urlObj.searchParams.set("offset", offset);
+        urlObj.searchParams.set("limit", limit);
+        url = urlObj.toString();
+      }
+      log("log", `Making request to ${url} with method: ${method}`);
+      const data = await fetchContent(url, requestOptions);
+      if (data) {
+        updateTarget(targetElement, data);
+        if (paginationEnabled) {
+          offset += limit;
+          element.setAttribute("offset", offset);
+        }
+      }
+    };
+
+    return makeRequest;
+  };
+
   const handleRequest = (element) => {
     const method = element.getAttribute("method") || "GET";
-    let href = element.getAttribute("href");
+    const href = element.getAttribute("href");
     const targetSelector = element.getAttribute("target");
     const trigger = element.getAttribute("trigger") || "click";
+    const paginationEnabled = element.hasAttribute("pagination");
     const limit = parseInt(element.getAttribute("limit") || "10", 10);
     let offset = parseInt(element.getAttribute("offset") || "0", 10);
 
@@ -50,22 +82,14 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const requestOptions = {
-      method: method.toUpperCase(),
-      headers: { Accept: "text/html" },
-    };
-
-    const makeRequest = async () => {
-      const url = new URL(href, window.location.origin);
-      url.searchParams.set("offset", offset);
-      url.searchParams.set("limit", limit);
-      log("log", `Making request to ${url} with method: ${method}`);
-      const data = await fetchContent(url.toString(), requestOptions);
-      if (data) {
-        updateTarget(targetElement, data);
-        offset += limit;
-      }
-    };
+    const makeRequest = createRequestHandler(element, {
+      href,
+      method,
+      targetElement,
+      limit,
+      offset,
+      paginationEnabled,
+    });
 
     log("log", `Attaching ${trigger} event to element`, element);
 
