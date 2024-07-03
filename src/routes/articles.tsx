@@ -1,3 +1,4 @@
+import Button from "components/Button";
 import { Hono } from "hono";
 import { getCachedArticles } from "models/article";
 import { debug } from "util/log";
@@ -40,12 +41,15 @@ export default function articlesRoutes(app: Hono) {
           </li>
         ))}
         {articles.length > 0 && (
-          <div
+          <Button
             method="GET"
             href={`/articles?page=${nextPage}`}
-            trigger="intersect"
+            trigger="click"
             target="ul"
-          ></div>
+            class="mt-4"
+          >
+            Load More
+          </Button>
         )}
       </ul>,
     );

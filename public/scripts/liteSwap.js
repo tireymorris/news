@@ -5,13 +5,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const targetSelector = element.getAttribute("target");
     const trigger = element.getAttribute("trigger") || "click";
 
-    if (!method || !href) return;
+    if (!method || !href) {
+      console.warn(`liteSwap: Missing method or href for element:`, element);
+      return;
+    }
 
     const targetElement = targetSelector
       ? document.querySelector(targetSelector)
       : element;
 
-    if (!targetElement) return;
+    if (!targetElement) {
+      console.warn(
+        `liteSwap: Target element not found for selector: ${targetSelector}`,
+      );
+      return;
+    }
 
     const requestOptions = {
       method: method.toUpperCase(),
@@ -19,15 +27,26 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     console.log(
-      `Attaching ${trigger} event to element with method: ${method}, href: ${href}, target: ${targetSelector}`,
+      `liteSwap: Attaching ${trigger} event to element with method: ${method}, href: ${href}, target: ${targetSelector}`,
     );
 
     const makeRequest = async () => {
-      console.log(`Triggered ${trigger} event, making request to ${href}`);
-      const response = await fetch(href, requestOptions);
-      const data = await response.text();
-      console.log(`Response received from ${href}`);
-      targetElement.innerHTML = data;
+      console.log(
+        `liteSwap: Triggered ${trigger} event, making request to ${href}`,
+      );
+      try {
+        const response = await fetch(href, requestOptions);
+        console.log(`liteSwap: Fetch request made to ${href}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.text();
+        console.log(`liteSwap: Response received from ${href}`);
+        targetElement.innerHTML += data;
+        console.log(`liteSwap: Content appended to target element`);
+      } catch (error) {
+        console.error(`liteSwap: Error fetching from ${href}:`, error);
+      }
     };
 
     if (trigger === "DOMContentLoaded") {
@@ -35,6 +54,10 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       element.addEventListener(trigger, (event) => {
         event.preventDefault();
+        console.log(
+          `liteSwap: ${trigger} event triggered on element:`,
+          element,
+        );
         makeRequest();
       });
     }
@@ -42,8 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const elements = document.querySelectorAll("[method][href]");
   console.log(
-    `Found ${elements.length} elements with [method][href] attributes`,
+    `liteSwap: Found ${elements.length} elements with [method][href] attributes`,
   );
-
   elements.forEach(handleRequest);
 });
