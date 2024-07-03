@@ -41,9 +41,10 @@ document.addEventListener("DOMContentLoaded", () => {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.text();
-        console.log(`liteSwap: Response received from ${href}`);
+        console.log(`liteSwap: Response received from ${href}`, data);
         targetElement.innerHTML += data;
         console.log(`liteSwap: Content appended to target element`);
+        attachLiteSwap(targetElement);
       } catch (error) {
         console.error(`liteSwap: Error fetching from ${href}:`, error);
       }
@@ -63,9 +64,28 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  const elements = document.querySelectorAll("[method][href]");
-  console.log(
-    `liteSwap: Found ${elements.length} elements with [method][href] attributes`,
-  );
-  elements.forEach(handleRequest);
+  const attachLiteSwap = (root) => {
+    const elements = root.querySelectorAll("[method][href]");
+    console.log(
+      `liteSwap: Found ${elements.length} elements with [method][href] attributes`,
+    );
+    elements.forEach(handleRequest);
+  };
+
+  attachLiteSwap(document);
+
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          attachLiteSwap(node);
+        }
+      });
+    });
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
 });
