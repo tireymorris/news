@@ -1,4 +1,3 @@
-import Button from "components/Button";
 import { Hono } from "hono";
 import { getCachedArticles } from "models/article";
 import { debug } from "util/log";
@@ -9,7 +8,7 @@ export default function articlesRoutes(app: Hono) {
     debug("GET /articles - Start");
 
     const page = parseInt(c.req.query("page") || "1");
-    const articlesPerPage = 15;
+    const articlesPerPage = 25;
     const offset = (page - 1) * articlesPerPage;
 
     debug("Page:", page);
@@ -22,8 +21,6 @@ export default function articlesRoutes(app: Hono) {
     );
 
     debug("Articles retrieved:", articles.length);
-
-    const nextPage = page + 1;
 
     return c.html(
       <ul class="list-none m-0 p-0">
@@ -40,17 +37,6 @@ export default function articlesRoutes(app: Hono) {
             </div>
           </li>
         ))}
-        {articles.length > 0 && (
-          <Button
-            method="GET"
-            href={`/articles?page=${nextPage}`}
-            trigger="click"
-            target="ul"
-            class="mt-4"
-          >
-            Load More
-          </Button>
-        )}
       </ul>,
     );
   });

@@ -1,12 +1,43 @@
+DEBUG = false;
+
 document.addEventListener("DOMContentLoaded", () => {
+  const log = (type, ...args) => DEBUG && console[type](`liteSwap:`, ...args);
+
+  const fetchContent = async (href, requestOptions) => {
+    try {
+      log("log", `Fetching content from ${href}`);
+      const response = await fetch(href, requestOptions);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.text();
+      log("log", `Content fetched from ${href}`, data.length);
+      return data;
+    } catch (error) {
+      log("error", `Error fetching from ${href}:`, error);
+    }
+  };
+
+  const updateTarget = (targetElement, data) => {
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = data;
+    while (tempDiv.firstChild) {
+      targetElement.appendChild(tempDiv.firstChild);
+    }
+    log("log", `Content appended to target element`);
+    attachLiteSwap(targetElement);
+  };
+
   const handleRequest = (element) => {
     const method = element.getAttribute("method") || "GET";
-    const href = element.getAttribute("href");
+    let href = element.getAttribute("href");
     const targetSelector = element.getAttribute("target");
     const trigger = element.getAttribute("trigger") || "click";
+    const limit = parseInt(element.getAttribute("limit") || "10", 10);
+    let offset = parseInt(element.getAttribute("offset") || "0", 10);
 
-    if (!method || !href) {
-      console.warn(`liteSwap: Missing method or href for element:`, element);
+    if (!href) {
+      log("warn", `Missing href for element:`, element);
       return;
     }
 
@@ -15,59 +46,57 @@ document.addEventListener("DOMContentLoaded", () => {
       : element;
 
     if (!targetElement) {
-      console.warn(
-        `liteSwap: Target element not found for selector: ${targetSelector}`,
-      );
+      log("warn", `Target element not found for selector: ${targetSelector}`);
       return;
     }
 
     const requestOptions = {
       method: method.toUpperCase(),
-      headers: { "Content-Type": "application/json" },
+      headers: { Accept: "text/html" },
     };
 
-    console.log(
-      `liteSwap: Attaching ${trigger} event to element with method: ${method}, href: ${href}, target: ${targetSelector}`,
-    );
-
     const makeRequest = async () => {
-      console.log(
-        `liteSwap: Triggered ${trigger} event, making request to ${href}`,
-      );
-      try {
-        const response = await fetch(href, requestOptions);
-        console.log(`liteSwap: Fetch request made to ${href}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.text();
-        console.log(`liteSwap: Response received from ${href}`, data);
-        targetElement.innerHTML += data;
-        console.log(`liteSwap: Content appended to target element`);
-        attachLiteSwap(targetElement);
-      } catch (error) {
-        console.error(`liteSwap: Error fetching from ${href}:`, error);
+      const url = new URL(href, window.location.origin);
+      url.searchParams.set("offset", offset);
+      url.searchParams.set("limit", limit);
+      log("log", `Making request to ${url} with method: ${method}`);
+      const data = await fetchContent(url.toString(), requestOptions);
+      if (data) {
+        updateTarget(targetElement, data);
+        offset += limit;
       }
     };
 
-    if (trigger === "DOMContentLoaded") {
+    log("log", `Attaching ${trigger} event to element`, element);
+
+    element.removeEventListener(trigger, element._liteSwapHandler);
+    element._liteSwapHandler = (event) => {
+      event.preventDefault();
+      log("log", `${trigger} event triggered on element`, element);
+      makeRequest();
+    };
+
+    if (trigger === "scroll") {
+      const handleScroll = () => {
+        const { scrollTop, scrollHeight, clientHeight } =
+          document.documentElement;
+        if (scrollTop + clientHeight >= scrollHeight - 5) {
+          makeRequest();
+        }
+      };
+      window.addEventListener("scroll", handleScroll);
+    } else if (trigger === "DOMContentLoaded") {
       makeRequest();
     } else {
-      element.addEventListener(trigger, (event) => {
-        event.preventDefault();
-        console.log(
-          `liteSwap: ${trigger} event triggered on element:`,
-          element,
-        );
-        makeRequest();
-      });
+      element.addEventListener(trigger, element._liteSwapHandler);
     }
   };
 
   const attachLiteSwap = (root) => {
     const elements = root.querySelectorAll("[method][href]");
-    console.log(
-      `liteSwap: Found ${elements.length} elements with [method][href] attributes`,
+    log(
+      "log",
+      `Found ${elements.length} elements with [method][href] attributes`,
     );
     elements.forEach(handleRequest);
   };

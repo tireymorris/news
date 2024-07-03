@@ -23,10 +23,21 @@ app.get("/", async (c) => {
         <div
           id="articles"
           method="GET"
-          href="/articles?page=1"
+          href="/articles"
           trigger="DOMContentLoaded"
           target="#articles"
+          limit="15"
+          offset="0"
           class="w-full px-2"
+        ></div>
+        <div
+          method="GET"
+          href="/articles"
+          trigger="scroll"
+          target="#articles"
+          limit="15"
+          offset="15"
+          class="w-full"
         ></div>
       </div>
     </Layout>,
