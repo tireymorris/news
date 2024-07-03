@@ -22,9 +22,9 @@ app.get("/", async (c) => {
       <div class="flex flex-col items-center gap-2 p-4 min-h-screen text-base">
         <div
           id="articles"
-          method="get"
+          method="GET"
           href="/articles?page=1"
-          trigger="load"
+          trigger="DOMContentLoaded"
           target="#articles"
           class="w-full px-2"
         ></div>

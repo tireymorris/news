@@ -18,13 +18,32 @@ document.addEventListener("DOMContentLoaded", () => {
       headers: { "Content-Type": "application/json" },
     };
 
-    element.addEventListener(trigger, async (event) => {
-      event.preventDefault();
+    console.log(
+      `Attaching ${trigger} event to element with method: ${method}, href: ${href}, target: ${targetSelector}`,
+    );
+
+    const makeRequest = async () => {
+      console.log(`Triggered ${trigger} event, making request to ${href}`);
       const response = await fetch(href, requestOptions);
       const data = await response.text();
+      console.log(`Response received from ${href}`);
       targetElement.innerHTML = data;
-    });
+    };
+
+    if (trigger === "DOMContentLoaded") {
+      makeRequest();
+    } else {
+      element.addEventListener(trigger, (event) => {
+        event.preventDefault();
+        makeRequest();
+      });
+    }
   };
 
-  document.querySelectorAll("[method][href]").forEach(handleRequest);
+  const elements = document.querySelectorAll("[method][href]");
+  console.log(
+    `Found ${elements.length} elements with [method][href] attributes`,
+  );
+
+  elements.forEach(handleRequest);
 });

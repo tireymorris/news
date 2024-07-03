@@ -19,6 +19,7 @@ export default function articlesRoutes(app: Hono) {
         relativeDate: formatRelativeTime(new Date(article.created_at)),
       }),
     );
+
     debug("Articles retrieved:", articles.length);
 
     const nextPage = page + 1;
@@ -40,9 +41,10 @@ export default function articlesRoutes(app: Hono) {
         ))}
         {articles.length > 0 && (
           <div
-            hx-get={`/articles?page=${nextPage}`}
-            hx-trigger="intersect once"
-            hx-swap="beforeend"
+            method="GET"
+            href={`/articles?page=${nextPage}`}
+            trigger="intersect"
+            target="ul"
           ></div>
         )}
       </ul>,
