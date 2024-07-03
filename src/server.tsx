@@ -19,28 +19,18 @@ app.get("/", async (c) => {
 
   return c.html(
     <Layout title="hyperwave" lastUpdated={lastUpdated}>
-      <div class="flex flex-col items-center gap-2 p-4 min-h-screen text-base">
+      <div class="flex flex-col gap-2 p-4 min-h-screen text-base">
         <div
           id="articles"
-          liteswap
-          method="GET"
-          href="/articles"
-          trigger="DOMContentLoaded"
-          target="#articles"
-          limit="15"
-          offset="0"
-          class="w-full px-2"
-        ></div>
-        <div
-          liteswap
           method="GET"
           href="/articles"
           trigger="scroll"
           target="#articles"
           limit="15"
-          offset="15"
+          offset="0"
           debounce="200"
-          class="w-full"
+          class="w-full px-2"
+          data-total="1000"
         ></div>
       </div>
     </Layout>,
