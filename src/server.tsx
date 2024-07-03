@@ -8,6 +8,7 @@ import { formatRelativeTime, getLastUpdatedTimestamp } from "util/time";
 const app = new Hono();
 
 app.use("/styles/*", serveStatic({ root: "./public/" }));
+app.use("/scripts/*", serveStatic({ root: "./public/" }));
 app.use("*", logger());
 
 app.get("/", async (c) => {
@@ -21,9 +22,10 @@ app.get("/", async (c) => {
       <div class="flex flex-col items-center gap-2 p-4 min-h-screen text-base">
         <div
           id="articles"
-          hx-get="/articles?page=1"
-          hx-trigger="load"
-          hx-swap="beforeend"
+          method="get"
+          href="/articles?page=1"
+          trigger="load"
+          target="#articles"
           class="w-full px-2"
         ></div>
       </div>
