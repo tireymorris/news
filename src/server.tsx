@@ -22,6 +22,7 @@ app.get("/", async (c) => {
       <div class="flex flex-col items-center gap-2 p-4 min-h-screen text-base">
         <div
           id="articles"
+          liteswap
           method="GET"
           href="/articles"
           trigger="DOMContentLoaded"
@@ -29,6 +30,17 @@ app.get("/", async (c) => {
           limit="15"
           offset="0"
           class="w-full px-2"
+        ></div>
+        <div
+          liteswap
+          method="GET"
+          href="/articles"
+          trigger="scroll"
+          target="#articles"
+          limit="15"
+          offset="15"
+          debounce="200"
+          class="w-full"
         ></div>
       </div>
     </Layout>,
