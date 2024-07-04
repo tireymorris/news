@@ -70,10 +70,27 @@ const handlePagination = (element, requestOptions) => {
 };
 
 const handleInfiniteScroll = (element, loadNextPage, debounceTime) => {
-  const onScroll = createDebouncedFunction(() => {
-    const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-    if (scrollTop + clientHeight >= scrollHeight - 5) {
-      loadNextPage();
+  let isLoading = false;
+  const threshold = 200; // Pixels from the bottom to trigger loading
+
+  const onScroll = createDebouncedFunction(async () => {
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const clientHeight = window.innerHeight;
+    const scrollHeight = document.documentElement.scrollHeight;
+
+    log(
+      "log",
+      `Scroll Position: scrollTop=${scrollTop}, clientHeight=${clientHeight}, scrollHeight=${scrollHeight}`,
+    );
+
+    if (scrollTop + clientHeight >= scrollHeight - threshold && !isLoading) {
+      log(
+        "log",
+        "User is very close to the bottom of the page. Loading more content...",
+      );
+      isLoading = true;
+      await loadNextPage();
+      isLoading = false;
     }
   }, debounceTime);
 
@@ -86,7 +103,7 @@ const handleInfiniteScroll = (element, loadNextPage, debounceTime) => {
 const handleRequest = (element) => {
   const method = element.getAttribute("method") || "GET";
   const trigger = element.getAttribute("trigger") || "click";
-  const debounceTime = parseInt(element.getAttribute("debounce") || "200", 10);
+  const debounceTime = parseInt(element.getAttribute("debounce") || "50", 10);
 
   if (!element.getAttribute("href")) {
     log("warn", `Missing href for element:`, element);
