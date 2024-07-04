@@ -7,7 +7,7 @@ export default async function Header() {
     : null;
 
   return (
-    <header className="w-full flex items-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg mb-4 px-4 py-2 rounded-sm">
+    <header className="w-full flex items-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg px-4 py-2 rounded-sm">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         fill="none"

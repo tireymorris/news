@@ -28,7 +28,7 @@ export default function Layout({ title, children, lastUpdated }: LayoutProps) {
         <script src="/scripts/hyperwave.js"></script>
         <style>{`* { box-sizing: border-box; margin: 0; outline: none; color: unset; }`}</style>
       </head>
-      <body className="font-lato m-0 bg-white dark:bg-gray-900 p-0 text-black dark:text-white">
+      <body className="m-0 bg-white dark:bg-gray-900 p-0 text-black dark:text-white">
         <Header lastUpdated={lastUpdated} />
         {children}
       </body>
