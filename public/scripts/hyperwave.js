@@ -116,7 +116,9 @@ const handleRequest = (element) => {
 };
 
 const attachHyperwave = (root) => {
-  const elements = root.querySelectorAll("[href]");
+  const elements = [...root.querySelectorAll("[href]")].filter(
+    (element) => !["A", "LINK"].includes(element.tagName),
+  );
   log("log", `Found ${elements.length} elements with [href] attr`);
   elements.forEach(handleRequest);
 };
