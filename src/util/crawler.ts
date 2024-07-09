@@ -11,7 +11,7 @@ export const fetchArticlesFromSource = async (
   const response = await fetch(source.url);
   const text = await response.text();
 
-  debug(`FETCHING: ${source.name}`);
+  debug(`*** Fetched ${text.length} bytes from: ${source.name}`);
   const $ = load(text);
   const articles: Article[] = [];
 

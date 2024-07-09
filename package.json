@@ -20,20 +20,20 @@
     "worker": "bun run src/worker.ts"
   },
   "dependencies": {
-    "@unocss/preset-web-fonts": "^0.61.0",
+    "@unocss/preset-web-fonts": "^0.61.3",
     "cheerio": "^1.0.0-rc.12",
-    "hono": "^4.4.11",
+    "hono": "^4.4.12",
     "nodemon": "^3.1.4",
-    "unocss": "^0.61.0",
+    "unocss": "^0.61.3",
     "uuid": "^10.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/bun": "^1.1.6",
-    "@unocss/cli": "^0.61.0",
-    "bun-types": "^1.1.17",
+    "@unocss/cli": "^0.61.3",
+    "bun-types": "^1.1.18",
     "concurrently": "^8.2.2",
-    "pm2": "^5.4.1",
+    "pm2": "^5.4.2",
     "prettier": "^3.3.2",
     "prettier-plugin-tailwindcss": "^0.6.5"
   },

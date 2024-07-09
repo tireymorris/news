@@ -9,7 +9,7 @@ export const articleSchema = z.object({
   title: z
     .string()
     .refine((title) => title.split(" ").length >= 5, {
-      message: "Title must contain at least 5 words",
+      message: "Title must contain at least 4 words",
     })
     .refine(
       (title) =>
