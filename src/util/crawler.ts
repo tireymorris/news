@@ -1,13 +1,8 @@
 import { load } from "cheerio";
-import { createHash } from "crypto";
 import { Article, isValidArticle } from "models/article";
 import { log, debug } from "util/log";
 import db from "@/db";
 import { NewsSource } from "../models/newsSources";
-
-const getHash = (content: string): string => {
-  return createHash("sha256").update(content).digest("hex");
-};
 
 const getStoredHash = (source: string): string | null => {
   const result = db
@@ -30,7 +25,7 @@ export const fetchArticlesFromSource = async (
   const response = await fetch(source.url);
   const text = await response.text();
 
-  const currentHash = getHash(text);
+  const currentHash = Bun.hash(text).toString();
   const storedHash = getStoredHash(source.name);
 
   if (currentHash === storedHash) {
