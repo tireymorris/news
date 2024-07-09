@@ -13,4 +13,11 @@ db.run(`
   )
 `);
 
+db.run(`
+  CREATE TABLE IF NOT EXISTS source_hashes (
+    source TEXT PRIMARY KEY,
+    hash TEXT
+  )
+`);
+
 export default db;

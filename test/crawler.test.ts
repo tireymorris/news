@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from "bun:test";
-import { newsSources } from "util/newsSources";
+import { newsSources } from "models/newsSources";
 import { fetchArticlesFromSource } from "util/crawler";
 import db from "@/db";
 

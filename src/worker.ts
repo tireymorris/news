@@ -1,6 +1,6 @@
 import { fetchAndStoreArticles } from "models/article";
 import { debug } from "util/log";
-import { newsSources } from "util/newsSources";
+import { newsSources } from "models/newsSources";
 import sendTelegramMessage from "util/sendTelegramMessage";
 
 const scheduleArticleUpdate = async () => {

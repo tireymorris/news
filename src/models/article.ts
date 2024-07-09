@@ -1,9 +1,16 @@
 import db from "@/db";
 import { debug, log } from "util/log";
-import { newsSources } from "util/newsSources";
+import { NewsSource, newsSources } from "models/newsSources";
 import { z } from "zod";
-import { Article } from "@/types";
 import { fetchArticlesFromSource } from "util/crawler";
+
+export interface Article {
+  id: string;
+  title: string;
+  link: string;
+  source: NewsSource["name"];
+  created_at: string;
+}
 
 export const articleSchema = z.object({
   title: z
