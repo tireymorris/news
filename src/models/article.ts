@@ -86,13 +86,11 @@ export const getCachedArticles = (offset: number, limit: number): Article[] => {
 };
 
 export const fetchAndStoreArticles = async (): Promise<Article[]> => {
-  debug(`Fetching and storing articles`);
   const allArticles = await fetchAllArticles();
 
   const fetchedLinks = allArticles.map((article) => article.link);
 
   if (fetchedLinks.length === 0) {
-    debug("No articles fetched.");
     return [];
   }
 
