@@ -5,7 +5,7 @@ hyperwave combines the strengths of traditional server-rendered applications wit
 ## Key Features
 
 - Performance: Server-side rendering ensures fast, responsive applications.
-- Developer Experience: HTMX and Tailwind offer a minimalistic and declarative approach to UI development.
+- Developer Experience: tailwind-compatible syntax and html over the wire offer a minimalistic and declarative approach to UI development.
 - Deployment: Bun applications can be deployed easily on any platform as portable binaries.
 
 ````
