@@ -13,7 +13,7 @@ export default async function Header() {
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
-        className="w-16 h-16 mr-4"
+        className="w-12 h-12 mr-4"
       >
         <path
           strokeLinecap="round"
@@ -23,7 +23,7 @@ export default async function Header() {
         />
       </svg>
       <div className="flex flex-col">
-        <h1 className="text-3xl font-serif italic">hyperwave news</h1>
+        <h1 className="text-xl font-serif italic">hyperwave news</h1>
         {lastUpdated && (
           <p className="text-sm mt-1">Last updated: {lastUpdated}</p>
         )}
