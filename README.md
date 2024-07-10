@@ -1,34 +1,40 @@
 # hyperwave
 
-hyperwave combines the benefits of traditional server-rendered applications with the flexibility of modern client-side frameworks.
+hyperwave combines the strengths of traditional server-rendered applications with the flexibility of modern client-side frameworks. It is designed to deliver fast, responsive applications while providing a streamlined developer experience.
 
-- **Performance:** Server-side rendering ensures fast, responsive applications, tailored to produce the smallest possible bundles.
-- **Developer experience:** HTMX and Tailwind provide a minimalistic and declarative approach to building user interfaces
-- **Deployment:** bun applications can be easily deployed on any platform as portable binaries
+## Key Features
 
-## Getting started
+- Performance: Server-side rendering ensures fast, responsive applications.
+- Developer Experience: HTMX and Tailwind offer a minimalistic and declarative approach to UI development.
+- Deployment: Bun applications can be deployed easily on any platform as portable binaries.
 
-Follow these steps to start developing with hyperwave:
+````
+git clone https://github.com/tireymorris/hyperwave.git
+cd hyperwave
+bun install
+bun dev
+```
+````
 
-1. Clone the repository:
+Navigate to http://localhost:1234 in your browser and start editing server.tsx to observe your changes live.
 
-   ```sh
-   git clone https://github.com/tireymorris/hyperwave.git
-   cd hyperwave
-   ```
+## hyperwave.js
 
-2. Install dependencies:
+dynamically load content on user events, without requiring a page reload.
 
-   ```sh
-   bun install
-   ```
+attaches automatically to any element with an href attribute (besides an anchor/link tag, which is treated as normal)
 
-3. Start the development server:
+### Usage:
 
-   ```sh
-   bun dev
-   ```
+```
+<div href="/next-page" target="#content"></div>
+```
 
-4. Visit `http://localhost:1234` in your browser.
+- trigger: Event that triggers loading (e.g., click, scroll).
+- method: HTTP request method (e.g., GET, POST).
+- debounce: Delay in milliseconds to optimize performance.
+- offset, limit, data-total: Manage pagination settings.
 
-5. Start editing `server.tsx` to see your changes live.
+```
+<div href="/next-page" target="#content" trigger="scroll" method="GET" debounce="50" offset="0" limit="10" data-total="100"></div>
+```
