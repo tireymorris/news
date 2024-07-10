@@ -26,9 +26,6 @@ app.get("/", async (c) => {
           href="/articles"
           trigger="scroll"
           target="#articles"
-          limit="25"
-          offset="0"
-          debounce="15"
           class="w-full px-2"
           data-total="1000"
         ></div>
