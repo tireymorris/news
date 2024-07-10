@@ -25,6 +25,7 @@ app.get("/", async (c) => {
           method="GET"
           href="/articles"
           trigger="scroll"
+          debounce="1"
           target="#articles"
           class="w-full px-2"
           data-total="1000"
