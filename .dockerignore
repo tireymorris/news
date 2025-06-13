@@ -1,0 +1,15 @@
+node_modules
+.git
+.github
+test
+*.md
+*.log
+.DS_Store
+dist
+stress.js
+ecosystem.config.js
+.env
+.env.local
+.env.development
+.env.test
+.env.production 

@@ -1,7 +1,8 @@
 import { Database } from "bun:sqlite";
 
 const isTest = process.env.NODE_ENV === "test";
-const db = new Database(isTest ? "test_articles.db" : "articles.db");
+const dbPath = isTest ? "test_articles.db" : (process.env.NODE_ENV === "production" ? "/app/data/articles.db" : "articles.db");
+const db = new Database(dbPath);
 
 db.run(`
   CREATE TABLE IF NOT EXISTS articles (
