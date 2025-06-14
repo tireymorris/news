@@ -49,6 +49,7 @@ app.get("/", async (c) => {
           debounce="1"
           target="#articles"
           class="w-full px-2"
+          limit="25"
           data-total="1000"
         ></div>
       </div>
