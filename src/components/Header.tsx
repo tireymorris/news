@@ -7,13 +7,13 @@ export default async function Header() {
     : null;
 
   return (
-    <header className="w-full flex items-center bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg px-4 py-2 rounded-sm">
+    <header className="flex w-full items-center rounded-sm bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-2 text-white shadow-lg">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
-        className="w-12 h-12 mr-4"
+        className="mr-4 h-12 w-12"
       >
         <path
           strokeLinecap="round"
@@ -23,9 +23,9 @@ export default async function Header() {
         />
       </svg>
       <div className="flex flex-col">
-        <h1 className="text-xl font-serif italic">hyperwave news</h1>
+        <h1 className="font-serif text-xl italic">hyperwave news</h1>
         {lastUpdated && (
-          <p className="text-sm mt-1">Last updated: {lastUpdated}</p>
+          <p className="mt-1 text-sm">Last updated: {lastUpdated}</p>
         )}
       </div>
     </header>

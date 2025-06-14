@@ -47,10 +47,12 @@ export const insertArticle = (article: Article): boolean => {
   );
 
   const checkExistence = db.prepare(
-    "SELECT COUNT(*) as count FROM articles WHERE link = ?",
+    "SELECT COUNT(*) as count FROM articles WHERE link = ? OR title = ?",
   );
 
-  const result = checkExistence.get(article.link) as { count: number };
+  const result = checkExistence.get(article.link, article.title) as {
+    count: number;
+  };
   if (result.count === 0) {
     try {
       insert.run(
@@ -66,7 +68,7 @@ export const insertArticle = (article: Article): boolean => {
       return false;
     }
   } else {
-    debug(`DUPLICATE: ${article.link}`);
+    debug(`DUPLICATE: ${article.link} or title: ${article.title}`);
     return false;
   }
 };
@@ -88,23 +90,38 @@ export const getCachedArticles = (offset: number, limit: number): Article[] => {
 export const fetchAndStoreArticles = async (): Promise<Article[]> => {
   const allArticles = await fetchAllArticles();
 
+  const { updateLastFetchTime } = await import("util/time");
+  updateLastFetchTime();
+
   const fetchedLinks = allArticles.map((article) => article.link);
+  const fetchedTitles = allArticles.map((article) => article.title);
 
   if (fetchedLinks.length === 0) {
     return [];
   }
 
-  const placeholders = fetchedLinks.map(() => "?").join(",");
+  const linkPlaceholders = fetchedLinks.map(() => "?").join(",");
+  const titlePlaceholders = fetchedTitles.map(() => "?").join(",");
+
   const existingLinksResult = db
-    .prepare(`SELECT link FROM articles WHERE link IN (${placeholders})`)
+    .prepare(`SELECT link FROM articles WHERE link IN (${linkPlaceholders})`)
     .all(...fetchedLinks);
+
+  const existingTitlesResult = db
+    .prepare(`SELECT title FROM articles WHERE title IN (${titlePlaceholders})`)
+    .all(...fetchedTitles);
 
   const existingLinks = new Set(
     existingLinksResult.map((row: any) => row.link),
   );
 
+  const existingTitles = new Set(
+    existingTitlesResult.map((row: any) => row.title),
+  );
+
   const newArticles = allArticles.filter(
-    (article) => !existingLinks.has(article.link),
+    (article) =>
+      !existingLinks.has(article.link) && !existingTitles.has(article.title),
   );
 
   if (newArticles.length === 0) {
@@ -117,6 +134,7 @@ export const fetchAndStoreArticles = async (): Promise<Article[]> => {
   const insertedArticles = newArticles.filter(insertArticle);
 
   debug(`Inserted ${insertedArticles.length} new articles into the database.`);
+
   return insertedArticles;
 };
 

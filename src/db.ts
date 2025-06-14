@@ -1,7 +1,11 @@
 import { Database } from "bun:sqlite";
 
 const isTest = process.env.NODE_ENV === "test";
-const dbPath = isTest ? "test_articles.db" : (process.env.NODE_ENV === "production" ? "/app/data/articles.db" : "articles.db");
+const dbPath = isTest
+  ? "test_articles.db"
+  : process.env.NODE_ENV === "production"
+    ? "/app/data/articles.db"
+    : "articles.db";
 const db = new Database(dbPath);
 
 db.run(`
@@ -18,6 +22,14 @@ db.run(`
   CREATE TABLE IF NOT EXISTS source_hashes (
     source TEXT PRIMARY KEY,
     hash TEXT
+  )
+`);
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS fetch_metadata (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
 

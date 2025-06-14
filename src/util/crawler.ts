@@ -51,7 +51,7 @@ export const fetchArticlesFromSource = async (
       if (title && relativeLink) {
         const link = new URL(relativeLink, source.baseUrl).href;
         const article: Article = {
-          id: Bun.hash(title).toString(),
+          id: Bun.hash(title + link).toString(),
           title,
           link,
           source: source.name,

@@ -21,16 +21,16 @@ export default function articlesRoutes(app: Hono) {
     debug("Articles retrieved:", articles.length);
 
     return c.html(
-      <ul class="list-none m-0 p-0">
+      <ul class="m-0 list-none p-0">
         {articles.map((article) => (
-          <li key={article.id} class="p-0 m-0 border-b list-none mb-1">
+          <li key={article.id} class="m-0 mb-1 list-none border-b p-0">
             <a
               href={article.link}
-              class="text-teal-500 hover:underline visited:text-purple-600"
+              class="decoration-none text-teal-500 visited:text-purple-600 hover:underline"
             >
               {article.title}
             </a>
-            <div class="text-gray-500 text-sm">
+            <div class="text-sm text-gray-500">
               {article.relativeDate} - {article.source}
             </div>
           </li>

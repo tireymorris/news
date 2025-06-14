@@ -37,3 +37,34 @@ export const getLastUpdatedTimestamp = (): Date | null => {
 
   return result ? new Date(result.created_at) : null;
 };
+
+export const getLastFetchTime = (): Date | null => {
+  const result = db
+    .prepare("SELECT value FROM fetch_metadata WHERE key = 'last_fetch_time'")
+    .get() as { value: string } | undefined;
+
+  return result ? new Date(result.value) : null;
+};
+
+export const updateLastFetchTime = (): void => {
+  const now = new Date().toISOString();
+  db.prepare(
+    `
+    INSERT OR REPLACE INTO fetch_metadata (key, value, updated_at) 
+    VALUES ('last_fetch_time', ?, CURRENT_TIMESTAMP)
+  `,
+  ).run(now);
+};
+
+export const shouldFetchArticles = (): boolean => {
+  const lastFetchTime = getLastFetchTime();
+  if (!lastFetchTime) {
+    return true;
+  }
+
+  const now = new Date();
+  const timeDiff = now.getTime() - lastFetchTime.getTime();
+  const tenMinutes = 10 * MINUTES;
+
+  return timeDiff >= tenMinutes;
+};

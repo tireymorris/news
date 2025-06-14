@@ -1,20 +1,8 @@
 const DEBUG = true;
 
-/**
- * Logs messages to the console if DEBUG is true.
- * @param {string} level - The level of logging (e.g., 'log', 'warn', 'error').
- * @param {...any} messages - The messages or data to log.
- */
 const log = (level, ...messages) =>
   DEBUG && console[level](`hyperwave:`, ...messages);
 
-/**
- * Creates a debounced function that delays the execution of the provided function.
- * Useful to limit the rate at which a function is invoked.
- * @param {Function} func - The function to debounce.
- * @param {number} delay - The number of milliseconds to delay.
- * @returns {Function} - The debounced function.
- */
 const createDebouncedFunction = (func, delay) => {
   let timeoutId;
   return (...args) => {
@@ -23,12 +11,6 @@ const createDebouncedFunction = (func, delay) => {
   };
 };
 
-/**
- * Fetches content from the specified URL using the provided options.
- * @param {string} url - The URL to fetch content from.
- * @param {RequestInit} fetchOptions - The options for the fetch request.
- * @returns {Promise<string>} - The fetched content as a string.
- */
 const fetchContent = async (url, fetchOptions) => {
   try {
     log("log", `Fetching content from ${url}`);
@@ -45,11 +27,6 @@ const fetchContent = async (url, fetchOptions) => {
   }
 };
 
-/**
- * Updates the target element with the provided content.
- * @param {HTMLElement} targetElement - The element to update.
- * @param {string} content - The new content to append to the target element.
- */
 const updateTargetElement = (targetElement, content) => {
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = content;
@@ -60,13 +37,6 @@ const updateTargetElement = (targetElement, content) => {
   attachHyperwaveHandlers(targetElement);
 };
 
-/**
- * Builds the URL for the next page to load, used for pagination.
- * @param {HTMLElement} triggerElement - The element that triggers pagination.
- * @param {number} offset - The current offset.
- * @param {number} limit - The number of items per page.
- * @returns {string} - The URL for the next page.
- */
 const buildPaginationUrl = (triggerElement, offset, limit) => {
   const url = new URL(
     triggerElement.getAttribute("href"),
@@ -77,12 +47,6 @@ const buildPaginationUrl = (triggerElement, offset, limit) => {
   return url.toString();
 };
 
-/**
- * Handles pagination for loading additional content.
- * @param {HTMLElement} triggerElement - The element that triggers pagination.
- * @param {RequestInit} fetchOptions - The options for the fetch request.
- * @returns {Function} - The function to load the next page of content.
- */
 const handlePagination = (triggerElement, fetchOptions) => {
   let offset = parseInt(triggerElement.getAttribute("offset") || "0", 10);
   const limit = parseInt(triggerElement.getAttribute("limit") || "10", 10);
@@ -107,11 +71,6 @@ const handlePagination = (triggerElement, fetchOptions) => {
   };
 };
 
-/**
- * Sets up event listeners and handlers based on element attributes.
- * Handles different triggers like click and DOMContentLoaded.
- * @param {HTMLElement} triggerElement - The element to handle the request for.
- */
 const setupEventHandlers = (triggerElement) => {
   const method = triggerElement.getAttribute("method") || "GET";
   const trigger = triggerElement.getAttribute("trigger") || "click";
@@ -135,7 +94,6 @@ const setupEventHandlers = (triggerElement) => {
   if (trigger.includes("DOMContentLoaded")) {
     loadNextPage();
   } else {
-    // Remove any existing event listener before adding a new one
     if (triggerElement._hyperwaveHandler) {
       triggerElement.removeEventListener(
         trigger,
@@ -153,15 +111,9 @@ const setupEventHandlers = (triggerElement) => {
   }
 };
 
-/**
- * Handles infinite scrolling to load more content as the user scrolls near the bottom of the page.
- * @param {HTMLElement} triggerElement - The element that triggers infinite scroll.
- * @param {Function} loadNextPage - The function to load the next page of content.
- * @param {number} debounceDelay - The debounce time in milliseconds for the scroll event.
- */
 const setupInfiniteScroll = (triggerElement, loadNextPage, debounceDelay) => {
   let isLoading = false;
-  const threshold = 200; // Pixels from the bottom to trigger loading
+  const threshold = 200;
 
   const onScroll = createDebouncedFunction(async () => {
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
@@ -176,17 +128,11 @@ const setupInfiniteScroll = (triggerElement, loadNextPage, debounceDelay) => {
   }, debounceDelay);
 
   window.addEventListener("scroll", onScroll);
-  loadNextPage(); // Load initial content if needed
+  loadNextPage();
 
-  // Store the event handler to remove it later if needed
   triggerElement._hyperwaveScrollHandler = onScroll;
 };
 
-/**
- * Attaches Hyperwave functionality to elements within the specified root element.
- * It scans for elements with `href` attribute and sets up the necessary handlers.
- * @param {HTMLElement} rootElement - The root element to search for elements to attach Hyperwave to.
- */
 const attachHyperwaveHandlers = (rootElement) => {
   const elements = Array.from(rootElement.querySelectorAll("[href]")).filter(
     (element) => !["A", "LINK"].includes(element.tagName),
@@ -205,7 +151,6 @@ const attachHyperwaveHandlers = (rootElement) => {
         headers: { Accept: "text/html" },
       });
 
-      // Remove any existing scroll event listener before adding a new one
       if (element._hyperwaveScrollHandler) {
         window.removeEventListener("scroll", element._hyperwaveScrollHandler);
       }
@@ -214,10 +159,6 @@ const attachHyperwaveHandlers = (rootElement) => {
   });
 };
 
-/**
- * Initializes Hyperwave on DOMContentLoaded and sets up a MutationObserver to attach Hyperwave to newly added elements.
- * Ensures dynamic elements loaded after initial page load are also enhanced.
- */
 document.addEventListener("DOMContentLoaded", () => {
   attachHyperwaveHandlers(document);
 
@@ -232,7 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   observer.observe(document.body, {
-    childList: true, // Monitor for additions or removals of child elements
-    subtree: true, // Monitor the entire subtree, not just immediate children
+    childList: true,
+    subtree: true,
   });
 });
