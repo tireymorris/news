@@ -4,19 +4,6 @@ import { log, debug } from "util/log";
 import db from "@/db";
 import { NewsSource } from "../models/newsSources";
 
-const getStoredHash = (source: string): string | null => {
-  const result = db
-    .prepare("SELECT hash FROM source_hashes WHERE source = ?")
-    .get(source) as { hash: string } | undefined;
-  return result ? result.hash : null;
-};
-
-const updateStoredHash = (source: string, hash: string): void => {
-  db.prepare(
-    "INSERT OR REPLACE INTO source_hashes (source, hash) VALUES (?, ?)",
-  ).run(source, hash);
-};
-
 export const fetchArticlesFromSource = async (
   source: NewsSource,
 ): Promise<Article[]> => {
@@ -24,16 +11,6 @@ export const fetchArticlesFromSource = async (
 
   const response = await fetch(source.url);
   const text = await response.text();
-
-  const currentHash = Bun.hash(text).toString();
-  const storedHash = getStoredHash(source.name);
-
-  if (currentHash === storedHash) {
-    debug(`No changes detected for ${source.name}. Skipping processing.`);
-    return [];
-  }
-
-  updateStoredHash(source.name, currentHash);
 
   debug(`*** Fetched ${text.length} bytes from: ${source.name}`);
   const $ = load(text);
@@ -50,6 +27,19 @@ export const fetchArticlesFromSource = async (
 
       if (title && relativeLink) {
         const link = new URL(relativeLink, source.baseUrl).href;
+
+        // Skip articles we've already seen
+        const existingArticle = db
+          .prepare(
+            "SELECT created_at FROM articles WHERE link = ? OR title = ?",
+          )
+          .get(link, title) as { created_at: string } | undefined;
+
+        if (existingArticle) {
+          debug(`*** SKIPPING EXISTING: ${source.name}: ${title}`);
+          return; // Skip this article entirely
+        }
+
         const article: Article = {
           id: Bun.hash(title + link).toString(),
           title,
@@ -57,11 +47,12 @@ export const fetchArticlesFromSource = async (
           source: source.name,
           created_at: new Date().toISOString(),
         };
+
         if (!isValidArticle(article)) {
           debug(`*** INVALID: ${source.name}: ${title} ${link}`);
         } else {
           articles.push(article);
-          debug(`*** VALID: ${source.name}: ${title} ${link}`);
+          debug(`*** NEW: ${source.name}: ${title} ${link}`);
         }
       } else {
         debug(`*** MISSING INFO: ${source.name}: ${title} ${relativeLink}`);

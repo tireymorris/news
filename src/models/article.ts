@@ -3,6 +3,7 @@ import { debug, log } from "util/log";
 import { NewsSource, newsSources } from "models/newsSources";
 import { z } from "zod";
 import { fetchArticlesFromSource } from "util/crawler";
+import { updateLastFetchTime } from "util/time";
 
 export interface Article {
   id: string;
@@ -90,7 +91,6 @@ export const getCachedArticles = (offset: number, limit: number): Article[] => {
 export const fetchAndStoreArticles = async (): Promise<Article[]> => {
   const allArticles = await fetchAllArticles();
 
-  const { updateLastFetchTime } = await import("util/time");
   updateLastFetchTime();
 
   const fetchedLinks = allArticles.map((article) => article.link);
