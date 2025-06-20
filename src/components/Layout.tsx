@@ -10,10 +10,7 @@ type LayoutProps = {
 
 export default function Layout({ title, children, lastUpdated }: LayoutProps) {
   return (
-    <html
-      lang="en"
-      className="bg-white text-black dark:bg-gray-900 dark:text-white"
-    >
+    <html lang="en" className="bg-gray-900 text-white">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -28,7 +25,7 @@ export default function Layout({ title, children, lastUpdated }: LayoutProps) {
         <script src="/scripts/hyperwave.js"></script>
         <style>{`* { box-sizing: border-box; margin: 0; outline: none; color: unset; }`}</style>
       </head>
-      <body className="m-0 bg-white p-0 text-black dark:bg-gray-900 dark:text-white">
+      <body className="m-0 bg-gray-900 p-0 text-white">
         <Header lastUpdated={lastUpdated} />
         {children}
       </body>

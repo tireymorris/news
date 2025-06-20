@@ -27,10 +27,8 @@
 [rounded-sm=""]{border-radius:0.125rem;}
 .border-none{border-style:none;}
 .bg-blue-300{--un-bg-opacity:1;background-color:rgb(147 197 253 / var(--un-bg-opacity)) /* #93c5fd */;}
-.bg-white,
-[bg-white=""]{--un-bg-opacity:1;background-color:rgb(255 255 255 / var(--un-bg-opacity)) /* #fff */;}
-.dark .dark\:bg-gray-900,
-.dark [dark\:bg-gray-900=""]{--un-bg-opacity:1;background-color:rgb(17 24 39 / var(--un-bg-opacity)) /* #111827 */;}
+.bg-gray-900,
+[bg-gray-900=""]{--un-bg-opacity:1;background-color:rgb(17 24 39 / var(--un-bg-opacity)) /* #111827 */;}
 .hover\:bg-blue-400:hover{--un-bg-opacity:1;background-color:rgb(96 165 250 / var(--un-bg-opacity)) /* #60a5fa */;}
 .from-blue-500,
 [from-blue-500=""]{--un-gradient-from-position:0%;--un-gradient-from:rgb(59 130 246 / var(--un-from-opacity, 1)) var(--un-gradient-from-position);--un-gradient-to-position:100%;--un-gradient-to:rgb(59 130 246 / 0) var(--un-gradient-to-position);--un-gradient-stops:var(--un-gradient-from), var(--un-gradient-to);}
@@ -48,14 +46,11 @@
 .text-base{font-size:1rem;line-height:1.5rem;}
 .text-sm{font-size:0.875rem;line-height:1.25rem;}
 .text-xl{font-size:1.25rem;line-height:1.75rem;}
-.dark .dark\:text-white,
-.text-white,
-[text-white=""]{--un-text-opacity:1;color:rgb(255 255 255 / var(--un-text-opacity)) /* #fff */;}
-.text-black,
-[text-black=""]{--un-text-opacity:1;color:rgb(0 0 0 / var(--un-text-opacity)) /* #000 */;}
 .text-gray-500{--un-text-opacity:1;color:rgb(107 114 128 / var(--un-text-opacity)) /* #6b7280 */;}
 .text-slate-900{--un-text-opacity:1;color:rgb(15 23 42 / var(--un-text-opacity)) /* #0f172a */;}
 .text-teal-500{--un-text-opacity:1;color:rgb(20 184 166 / var(--un-text-opacity)) /* #14b8a6 */;}
+.text-white,
+[text-white=""]{--un-text-opacity:1;color:rgb(255 255 255 / var(--un-text-opacity)) /* #fff */;}
 .visited\:text-purple-600:visited{--un-text-opacity:1;color:rgb(147 51 234 / var(--un-text-opacity)) /* #9333ea */;}
 .font-bold{font-weight:700;}
 .font-serif{font-family:ui-serif,Georgia,Cambria,"Times New Roman",Times,serif;}
