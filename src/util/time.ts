@@ -52,7 +52,7 @@ export const updateLastFetchTime = (): void => {
     `
     INSERT OR REPLACE INTO fetch_metadata (key, value, updated_at) 
     VALUES ('last_fetch_time', ?, CURRENT_TIMESTAMP)
-  `
+  `,
   ).run(now);
 };
 
@@ -65,5 +65,5 @@ export const shouldFetchArticles = (): boolean => {
   const now = new Date();
   const timeDiff = now.getTime() - lastFetchTime.getTime();
 
-  return timeDiff >= 1 * MINUTES;
+  return timeDiff >= 7 * MINUTES;
 };
