@@ -1,11 +1,27 @@
 import { Database } from "bun:sqlite";
+import { mkdirSync, existsSync } from "fs";
 
 const isTest = process.env.NODE_ENV === "test";
-const dbPath = isTest
-  ? "test_articles.db"
-  : process.env.NODE_ENV === "production"
-    ? "/app/data/articles.db"
-    : "articles.db";
+const dbPath =
+  process.env.DATABASE_PATH ||
+  (isTest
+    ? "test_articles.db"
+    : process.env.NODE_ENV === "production"
+      ? "/app/data/articles.db"
+      : "articles.db");
+
+// Ensure the directory exists for production
+if (process.env.NODE_ENV === "production") {
+  const dataDir = "/app/data";
+  if (!existsSync(dataDir)) {
+    console.log("Creating /app/data directory...");
+    mkdirSync(dataDir, { recursive: true });
+  }
+  console.log(`Using production database path: ${dbPath}`);
+} else {
+  console.log(`Using development database path: ${dbPath}`);
+}
+
 const db = new Database(dbPath);
 
 db.run(`

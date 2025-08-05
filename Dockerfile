@@ -20,9 +20,6 @@ RUN bun run build:server
 # Create directory for database and set permissions
 RUN mkdir -p /app/data
 
-# Set environment to production
-ENV NODE_ENV=production
-
 # Expose port
 EXPOSE 8080
 
