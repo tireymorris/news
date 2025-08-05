@@ -9,7 +9,7 @@ import {
   shouldFetchArticles,
   getLastFetchTime,
 } from "util/time";
-import { fetchAndStoreArticles } from "models/article";
+import { fetchAndStoreArticles, getCachedArticles } from "models/article";
 import { debug } from "util/log";
 
 const app = new Hono();
@@ -38,20 +38,43 @@ app.get("/", async (c) => {
     ? formatRelativeTime(lastUpdatedDate)
     : null;
 
+  const initialArticles = getCachedArticles(0, 100).map((article) => ({
+    ...article,
+    relativeDate: formatRelativeTime(new Date(article.created_at)),
+  }));
+
   return c.html(
     <Layout title="hyperwave" lastUpdated={lastUpdated}>
       <div class="flex min-h-screen flex-col gap-2 p-4 text-base">
-        <div
-          id="articles"
-          method="GET"
-          href="/articles"
-          trigger="scroll"
-          debounce="1"
-          target="#articles"
-          class="w-full px-2"
-          limit="25"
-          data-total="1000"
-        ></div>
+        <div class="w-full px-2">
+          <ul class="m-0 list-none p-0">
+            {initialArticles.map((article) => (
+              <li key={article.id} class="m-0 mb-1 list-none border-b p-0">
+                <a
+                  href={article.link}
+                  class="decoration-none text-teal-500 visited:text-purple-600 hover:underline"
+                >
+                  {article.title}
+                </a>
+                <div class="text-sm text-gray-500">
+                  {article.relativeDate} - {article.source}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div
+            id="articles"
+            method="GET"
+            href="/articles"
+            trigger="scroll"
+            debounce="1"
+            target="#articles"
+            class="w-full"
+            limit="25"
+            data-total="1000"
+            offset="100"
+          ></div>
+        </div>
       </div>
     </Layout>,
   );

@@ -5,7 +5,7 @@ import db from "@/db";
 import { NewsSource } from "../models/newsSources";
 
 export const fetchArticlesFromSource = async (
-  source: NewsSource
+  source: NewsSource,
 ): Promise<Article[]> => {
   log(`Fetching articles from: ${source.name}`);
 
@@ -30,7 +30,7 @@ export const fetchArticlesFromSource = async (
 
         const existingArticle = db
           .prepare(
-            "SELECT created_at FROM articles WHERE link = ? OR title = ?"
+            "SELECT created_at FROM articles WHERE link = ? OR title = ?",
           )
           .get(link, title) as { created_at: string } | undefined;
 

@@ -8,7 +8,7 @@ export default function articlesRoutes(app: Hono) {
     debug("GET /articles - Start");
 
     const offset = parseInt(c.req.query("offset") || "0", 10);
-    const limit = parseInt(c.req.query("limit") || "15", 10);
+    const limit = parseInt(c.req.query("limit") || "25", 10);
 
     debug("Offset:", offset);
     debug("Limit:", limit);
@@ -19,6 +19,14 @@ export default function articlesRoutes(app: Hono) {
     }));
 
     debug("Articles retrieved:", articles.length);
+
+    if (articles.length === 0) {
+      return c.html(
+        <div class="py-8 text-center text-gray-500">
+          No more articles to load
+        </div>,
+      );
+    }
 
     return c.html(
       <ul class="m-0 list-none p-0">
