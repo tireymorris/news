@@ -88,6 +88,13 @@ export const getCachedArticles = (offset: number, limit: number): Article[] => {
   return articles;
 };
 
+export const getTotalArticleCount = (): number => {
+  const result = db.prepare("SELECT COUNT(*) as count FROM articles").get() as {
+    count: number;
+  };
+  return result.count;
+};
+
 export const fetchAndStoreArticles = async (): Promise<Article[]> => {
   const allArticles = await fetchAllArticles();
 

@@ -9,7 +9,11 @@ import {
   shouldFetchArticles,
   getLastFetchTime,
 } from "util/time";
-import { fetchAndStoreArticles, getCachedArticles } from "models/article";
+import {
+  fetchAndStoreArticles,
+  getCachedArticles,
+  getTotalArticleCount,
+} from "models/article";
 import { debug } from "util/log";
 
 const app = new Hono();
@@ -43,6 +47,8 @@ app.get("/", async (c) => {
     relativeDate: formatRelativeTime(new Date(article.created_at)),
   }));
 
+  const totalArticles = getTotalArticleCount();
+
   return c.html(
     <Layout title="hyperwave" lastUpdated={lastUpdated}>
       <div class="flex min-h-screen flex-col gap-2 p-4 text-base">
@@ -71,7 +77,7 @@ app.get("/", async (c) => {
             target="#articles"
             class="w-full"
             limit="25"
-            data-total="1000"
+            data-total={totalArticles.toString()}
             offset="100"
           ></div>
         </div>
