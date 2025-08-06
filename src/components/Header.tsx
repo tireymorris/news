@@ -7,7 +7,12 @@ export default async function Header() {
     : null;
 
   return (
-    <header className="flex w-full items-center rounded-sm bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-2 text-white shadow-lg">
+    <header
+      className="flex w-full cursor-pointer items-center rounded-sm bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-2 text-white shadow-lg transition-colors hover:from-blue-600 hover:to-purple-600"
+      href="/"
+      target="body"
+      trigger="click"
+    >
       <svg
         xmlns="http://www.w3.org/2000/svg"
         fill="none"

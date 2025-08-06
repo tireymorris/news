@@ -95,6 +95,40 @@ export const getTotalArticleCount = (): number => {
   return result.count;
 };
 
+export const searchArticles = (
+  query: string,
+  offset: number = 0,
+  limit: number = 25,
+): Article[] => {
+  debug(
+    `Searching articles with query: "${query}", offset: ${offset}, limit: ${limit}`,
+  );
+
+  const searchQuery = `
+    SELECT * FROM articles 
+    WHERE title LIKE ? OR source LIKE ?
+    ORDER BY created_at DESC 
+    LIMIT ? OFFSET ?`;
+
+  const searchTerm = `%${query}%`;
+  const articles = db
+    .prepare(searchQuery)
+    .all(searchTerm, searchTerm, limit, offset) as Article[];
+  debug(`*** Retrieved ${articles.length} search results for "${query}"`);
+
+  return articles;
+};
+
+export const getSearchResultCount = (query: string): number => {
+  const searchTerm = `%${query}%`;
+  const result = db
+    .prepare(
+      "SELECT COUNT(*) as count FROM articles WHERE title LIKE ? OR source LIKE ?",
+    )
+    .get(searchTerm, searchTerm) as { count: number };
+  return result.count;
+};
+
 export const fetchAndStoreArticles = async (): Promise<Article[]> => {
   const allArticles = await fetchAllArticles();
 

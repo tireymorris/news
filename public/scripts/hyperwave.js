@@ -44,11 +44,32 @@ const buildPaginationUrl = (triggerElement, offset, limit) => {
   );
   url.searchParams.set("offset", offset);
   url.searchParams.set("limit", limit);
+
+  // Handle input elements - get value from the input
+  if (triggerElement.tagName === "INPUT" && triggerElement.name === "q") {
+    const inputValue = triggerElement.value.trim();
+    const currentQuery = new URLSearchParams(window.location.search).get("q");
+
+    // Only update if the value has actually changed
+    if (inputValue !== currentQuery) {
+      if (inputValue) {
+        url.searchParams.set("q", inputValue);
+      } else {
+        url.searchParams.delete("q");
+      }
+
+      // Update URL without page reload to preserve focus
+      window.history.pushState({}, "", url.toString());
+    } else {
+      // Value hasn't changed, don't make a request
+      return null;
+    }
+  }
+
   return url.toString();
 };
 
 const handlePagination = (triggerElement, fetchOptions) => {
-  let offset = parseInt(triggerElement.getAttribute("offset") || "0", 10);
   const limit = parseInt(triggerElement.getAttribute("limit") || "10", 10);
   const totalItems = parseInt(
     triggerElement.getAttribute("data-total") || "999999999",
@@ -56,17 +77,35 @@ const handlePagination = (triggerElement, fetchOptions) => {
   );
 
   return async () => {
+    // Get current offset from element attribute
+    let offset = parseInt(triggerElement.getAttribute("offset") || "0", 10);
+
     if (offset >= totalItems) return;
 
     const url = buildPaginationUrl(triggerElement, offset, limit);
+    if (!url) return; // Skip if URL is null (no change needed)
+
+    const target = triggerElement.getAttribute("target");
+
+    // For body target, do a full page reload
+    if (target === "body") {
+      // For search input, preserve focus after reload
+      if (triggerElement.tagName === "INPUT" && triggerElement.name === "q") {
+        const inputValue = triggerElement.value;
+        window.location.href = url;
+        // Focus will be restored when page loads since input has the same value
+        return;
+      }
+      window.location.href = url;
+      return;
+    }
+
     const content = await fetchContent(url, fetchOptions);
     if (content) {
-      updateTargetElement(
-        document.querySelector(triggerElement.getAttribute("target")),
-        content,
-      );
+      updateTargetElement(document.querySelector(target), content);
+      // Update offset on the element for next time
       offset += limit;
-      triggerElement.setAttribute("offset", offset);
+      triggerElement.setAttribute("offset", offset.toString());
     }
   };
 };
@@ -176,4 +215,15 @@ document.addEventListener("DOMContentLoaded", () => {
     childList: true,
     subtree: true,
   });
+
+  // Restore focus to search input if it has a value
+  const searchInput = document.getElementById("search-input");
+  if (searchInput && searchInput.value) {
+    searchInput.focus();
+    // Move cursor to end of input
+    searchInput.setSelectionRange(
+      searchInput.value.length,
+      searchInput.value.length,
+    );
+  }
 });
