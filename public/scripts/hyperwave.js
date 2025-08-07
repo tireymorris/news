@@ -70,7 +70,7 @@ const buildPaginationUrl = (triggerElement, offset, limit) => {
 };
 
 const handlePagination = (triggerElement, fetchOptions) => {
-  const limit = parseInt(triggerElement.getAttribute("limit") || "10", 10);
+  const limit = parseInt(triggerElement.getAttribute("limit") || "25", 10);
   const totalItems = parseInt(
     triggerElement.getAttribute("data-total") || "999999999",
     10,

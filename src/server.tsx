@@ -114,6 +114,7 @@ app.get("/", async (c) => {
               target="#articles"
               class="w-full"
               limit="25"
+              offset={initialArticles.length}
               data-total={totalArticles.toString()}
             ></div>
           )}
