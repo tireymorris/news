@@ -61,7 +61,7 @@ export const insertArticle = (article: Article): boolean => {
         article.title,
         article.link,
         article.source,
-        new Date().toISOString(),
+        article.created_at,
       );
       return true;
     } catch (error) {
