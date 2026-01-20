@@ -104,16 +104,14 @@ export const searchArticles = (
     `Searching articles with query: "${query}", offset: ${offset}, limit: ${limit}`,
   );
 
+  const searchTerm = `%${query}%`;
   const searchQuery = `
-    SELECT * FROM articles 
-    WHERE title LIKE ? OR source LIKE ?
-    ORDER BY created_at DESC 
+    SELECT * FROM articles
+    WHERE LOWER(title) LIKE LOWER('${searchTerm}') OR LOWER(source) LIKE LOWER('${searchTerm}')
+    ORDER BY created_at DESC
     LIMIT ? OFFSET ?`;
 
-  const searchTerm = `%${query}%`;
-  const articles = db
-    .prepare(searchQuery)
-    .all(searchTerm, searchTerm, limit, offset) as Article[];
+  const articles = db.prepare(searchQuery).all(limit, offset) as Article[];
   debug(`*** Retrieved ${articles.length} search results for "${query}"`);
 
   return articles;
