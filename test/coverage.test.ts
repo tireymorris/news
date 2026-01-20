@@ -7,6 +7,12 @@ describe("Coverage reporting", () => {
     const ciContent = readFileSync(".github/workflows/test.yml", "utf8");
     expect(ciContent).toContain("--coverage");
     expect(ciContent).toContain("genhtml");
+    expect(ciContent).toContain("upload-artifact");
+  });
+
+  it("should have coverage thresholds configured in bunfig.toml", () => {
+    const bunfigContent = readFileSync("bunfig.toml", "utf8");
+    expect(bunfigContent).toContain("coverageThreshold = 0.8");
   });
 
   it("should generate HTML coverage report with statistics", () => {
