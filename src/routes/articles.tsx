@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { getCachedArticles } from "models/article";
 import { debug } from "util/log";
 import { formatRelativeTime } from "util/time";
+import { styles } from "@/styles";
 
 export default function articlesRoutes(app: Hono) {
   app.get("/articles", async (c) => {
@@ -22,24 +23,26 @@ export default function articlesRoutes(app: Hono) {
 
     if (articles.length === 0) {
       return c.html(
-        <div class="py-8 text-center text-gray-500">
+        <div class={styles.articles.emptyState}>
           No more articles to load
         </div>,
       );
     }
 
     return c.html(
-      <ul class="m-0 list-none p-0">
+      <ul class={styles.articles.list}>
         {articles.map((article) => (
-          <li key={article.id} class="m-0 mb-1 list-none border-b p-0">
-            <a
-              href={article.link}
-              class="decoration-none text-teal-500 visited:text-purple-600 hover:underline"
-            >
-              {article.title}
-            </a>
-            <div class="text-sm text-gray-500">
-              {article.relativeDate} - {article.source}
+          <li key={article.id} class={styles.articles.item}>
+            <div class={styles.articles.card}>
+              <a
+                href={article.link}
+                class={styles.articles.link}
+              >
+                {article.title}
+              </a>
+              <div class={styles.articles.meta}>
+                {article.relativeDate} - {article.source}
+              </div>
             </div>
           </li>
         ))}

@@ -17,6 +17,7 @@ import {
   getSearchResultCount,
 } from "models/article";
 import { debug } from "util/log";
+import { styles } from "@/styles";
 
 const app = new Hono();
 
@@ -64,15 +65,15 @@ app.get("/", async (c) => {
 
   return c.html(
     <Layout title="hyperwave" lastUpdated={lastUpdated}>
-      <div class="flex min-h-screen flex-col gap-2 p-4 text-base">
-        <div class="w-full px-2">
-          <div class="mb-4">
+      <div class={styles.main.container}>
+        <div class={styles.main.content}>
+          <div class={styles.search.container}>
             <input
               type="text"
               name="q"
               value={searchQuery}
               placeholder="Search articles by title or source..."
-              class="w-full rounded border border-gray-600 bg-gray-800 px-3 py-2 text-white placeholder-gray-400 focus:border-teal-500 focus:outline-none"
+              class={styles.search.input}
               href="/"
               target="body"
               trigger="input"
@@ -81,25 +82,27 @@ app.get("/", async (c) => {
               id="search-input"
             />
             {searchQuery && (
-              <div class="mt-2">
-                <div class="mb-2 text-sm text-gray-300">
+              <div class={styles.search.resultsContainer}>
+                <div class={styles.search.resultsText}>
                   Found {totalArticles} result{totalArticles !== 1 ? "s" : ""}{" "}
                   for "{searchQuery}"
                 </div>
               </div>
             )}
           </div>
-          <ul class="m-0 list-none p-0">
+          <ul class={styles.articles.list}>
             {initialArticles.map((article) => (
-              <li key={article.id} class="m-0 mb-1 list-none border-b p-0">
-                <a
-                  href={article.link}
-                  class="decoration-none text-teal-500 visited:text-purple-600 hover:underline"
-                >
-                  {article.title}
-                </a>
-                <div class="text-sm text-gray-500">
-                  {article.relativeDate} - {article.source}
+              <li key={article.id} class={styles.articles.item}>
+                <div class={styles.articles.card}>
+                  <a
+                    href={article.link}
+                    class={styles.articles.link}
+                  >
+                    {article.title}
+                  </a>
+                  <div class={styles.articles.meta}>
+                    {article.relativeDate} - {article.source}
+                  </div>
                 </div>
               </li>
             ))}
@@ -112,7 +115,7 @@ app.get("/", async (c) => {
               trigger="scroll"
               debounce="1"
               target="#articles"
-              class="w-full"
+              class={styles.articles.infiniteScroll}
               limit="25"
               offset={initialArticles.length}
               data-total={totalArticles.toString()}
