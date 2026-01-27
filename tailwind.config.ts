@@ -7,6 +7,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace'],
+      },
       backdropBlur: {
         xs: '2px',
         sm: '4px',

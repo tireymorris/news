@@ -24,24 +24,15 @@ describe("Article Fetching Functions", () => {
     });
   });
 
-  it("Should fetch and parse Al Jazeera articles", async () => {
+  it("Should fetch and parse AP News articles", async () => {
     const articles = await fetchArticlesFromSource(newsSources[1]);
-    // Al Jazeera uses client-side rendering, so articles may not be available in static HTML
-    // If articles are found, validate them; otherwise skip validation
-    if (articles.length > 0) {
-      expect(articles.length).toBeGreaterThanOrEqual(1);
-      articles.forEach((article) => {
-        expect(article).toMatchObject({
-          title: expect.any(String),
-          link: expect.any(String),
-          source: "Al Jazeera",
-        });
+    expect(articles.length).toBeGreaterThanOrEqual(1);
+    articles.forEach((article) => {
+      expect(article).toMatchObject({
+        title: expect.any(String),
+        link: expect.any(String),
+        source: "AP News",
       });
-    } else {
-      // Skip test if no articles found (website structure may have changed)
-      console.warn(
-        "Al Jazeera articles not found - website may use client-side rendering",
-      );
-    }
+    });
   });
 });
