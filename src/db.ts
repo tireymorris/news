@@ -35,13 +35,6 @@ db.run(`
 `);
 
 db.run(`
-  CREATE TABLE IF NOT EXISTS source_hashes (
-    source TEXT PRIMARY KEY,
-    hash TEXT
-  )
-`);
-
-db.run(`
   CREATE TABLE IF NOT EXISTS fetch_metadata (
     key TEXT PRIMARY KEY,
     value TEXT,

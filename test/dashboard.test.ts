@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "bun:test";
 import server from "../src/server.tsx";
-import { insertArticles } from "../src/models/article";
+import { insertArticle } from "../src/models/article";
 import { Article } from "../src/models/article";
 import db from "../src/db";
 
@@ -11,6 +11,25 @@ beforeAll(() => {
     port: 3001,
     fetch: server.fetch,
   });
+
+  // Ensure tables exist
+  db.run(`
+    CREATE TABLE IF NOT EXISTS articles (
+      id TEXT PRIMARY KEY,
+      title TEXT UNIQUE,
+      link TEXT,
+      source TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS fetch_metadata (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
   // Insert test articles with different timestamps for testing relative time
   const testArticles: Article[] = [
@@ -37,7 +56,7 @@ beforeAll(() => {
     },
   ];
 
-  insertArticles(testArticles);
+  testArticles.forEach(insertArticle);
 });
 
 afterAll(() => {

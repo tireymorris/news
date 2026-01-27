@@ -189,8 +189,3 @@ const fetchAllArticles = async (): Promise<Article[]> => {
 
   return allArticles;
 };
-
-export const insertArticles = (articles: Article[]) => {
-  log(`*** Inserting ${articles.length} articles into the database`);
-  articles.forEach(insertArticle);
-};

@@ -3,7 +3,6 @@ import Header from "components/Header";
 
 type LayoutProps = {
   title: string;
-  currentPath?: string;
   children: any;
   lastUpdated?: string | null;
 };
