@@ -17,7 +17,7 @@ import {
   getSearchResultCount,
 } from "models/article";
 import { debug } from "util/log";
-import { styles } from "@/styles";
+import { styles, providerBadge } from "@/styles";
 
 const app = new Hono();
 
@@ -68,19 +68,23 @@ app.get("/", async (c) => {
       <div class={styles.main.container}>
         <div class={styles.main.content}>
           <div class={styles.search.container}>
-            <input
-              type="text"
-              name="q"
-              value={searchQuery}
-              placeholder="Search the archive..."
-              class={styles.search.input}
-              href="/"
-              target="body"
-              trigger="input"
-              debounce="500"
-              data-search-input="true"
-              id="search-input"
-            />
+            <div class={styles.search.wrapper}>
+              <span class={styles.search.prompt}>&gt;</span>
+              <input
+                type="text"
+                name="q"
+                value={searchQuery}
+                placeholder="Search the archive..."
+                class={styles.search.input}
+                href="/"
+                target="body"
+                trigger="input"
+                debounce="500"
+                data-search-input="true"
+                id="search-input"
+              />
+              <span class={styles.search.cursor}>_</span>
+            </div>
             {searchQuery && (
               <div class={styles.search.resultsContainer}>
                 <div class={styles.search.resultsText}>
@@ -91,25 +95,25 @@ app.get("/", async (c) => {
           </div>
           <ul class={styles.articles.list}>
             {initialArticles.map((article, index) => (
-              <li 
-                key={article.id} 
-                class={`${styles.articles.item} article-reveal stagger-${Math.min(index + 1, 10)}`}
+              <li
+                key={article.id}
+                class={`${styles.articles.item} ${styles.animations.signalReveal} ${styles.animations.stagger(index + 1)}`}
               >
-                <div class={styles.articles.card}>
+                <div class={`${styles.articles.card} ${index % 2 === 0 ? 'article-card-odd' : 'article-card-even'}`}>
                   <a
                     href={article.link}
                     target="_blank"
                     rel="noopener noreferrer"
                     class={styles.articles.link}
                   >
-                    <h2 class="text-xl md:text-2xl font-serif font-bold leading-tight group-hover:text-primary transition-colors duration-300">
+                    <h2 class={styles.articles.title}>
                       {article.title}
                     </h2>
                   </a>
                   <div class={styles.articles.meta}>
-                    <span class="date-stamp">{article.relativeDate}</span>
-                    <span class="w-px h-3 bg-border"></span>
-                    <span class="source-tag">{article.source}</span>
+                    <span class={styles.util.timestamp}>{article.relativeDate}</span>
+                    <span class={styles.header.dividerSm}></span>
+                    <span class={providerBadge(article.source)}>{article.source}</span>
                   </div>
                 </div>
               </li>

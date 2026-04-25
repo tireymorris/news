@@ -7,18 +7,23 @@ type HeaderProps = {
 export default function Header({ lastUpdated }: HeaderProps) {
   return (
     <header class={styles.header.container}>
-      <a href="/" target="body" trigger="click" class="block no-underline">
+      <a href="/" target="body" trigger="click" class={styles.util.blockLink}>
         <div class={styles.header.content}>
-          <p class={styles.header.lastUpdated}>The Latest in Technology & Culture</p>
-          <h1 class={styles.header.title}>hyperwave</h1>
-          <div class="flex items-center gap-4 mt-4">
-            <span class="date-stamp">Est. 2024</span>
-            <span class="w-px h-4 bg-border"></span>
-            <span class="date-stamp">{lastUpdated ? `Updated ${lastUpdated}` : 'Live'}</span>
+          <div class={styles.header.titleRow}>
+            <span class={styles.header.subtitle}>Daily Brief</span>
+            <h1 class={styles.header.title}>hyperwave.news</h1>
+          </div>
+
+          <div class={styles.header.metaRow}>
+            <span class={styles.util.flexCenter}>
+              <span class={styles.header.liveDot}></span>
+              <span class={styles.util.timestamp}>Today</span>
+            </span>
+            <span class={styles.header.divider}></span>
+            <span class={styles.util.timestamp}>{lastUpdated ? `Updated ${lastUpdated}` : 'Loading...'}</span>
           </div>
         </div>
       </a>
-      <div class="h-1 bg-primary w-full"></div>
     </header>
   );
 }

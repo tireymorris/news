@@ -13,7 +13,7 @@ export default function Layout({ title, children, lastUpdated }: LayoutProps) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="description" content="hyperwave" />
+        <meta name="description" content="hyperwave - your daily brief" />
         <title>{title}</title>
         <link
           rel="icon"
@@ -22,6 +22,7 @@ export default function Layout({ title, children, lastUpdated }: LayoutProps) {
         <link rel="stylesheet" href="/styles/globals.css" />
         <script src="/scripts/hyperwave.js"></script>
         <style>{styles.layout.resetStyle}</style>
+        <style>{styles.theme.css}</style>
       </head>
       <body class={styles.layout.body}>
         <Header lastUpdated={lastUpdated} />
