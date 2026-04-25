@@ -1,11 +1,11 @@
 import Header from "components/Header";
 import { styles } from "@/styles";
+import type { PropsWithChildren } from "hono/jsx";
 
-type LayoutProps = {
+type LayoutProps = PropsWithChildren<{
   title: string;
-  children: any;
   lastUpdated?: string | null;
-};
+}>;
 
 export default function Layout({ title, children, lastUpdated }: LayoutProps) {
   return (

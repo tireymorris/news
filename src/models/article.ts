@@ -17,7 +17,7 @@ export const articleSchema = z.object({
   title: z
     .string()
     .refine((title) => title.split(" ").length >= 5, {
-      message: "Title must contain at least 4 words",
+      message: "Title must contain at least 5 words",
     })
     .refine(
       (title) =>
@@ -95,35 +95,43 @@ export const getTotalArticleCount = (): number => {
   return result.count;
 };
 
+const searchLikeParams = (query: string) => {
+  const q = query.trim();
+  const pattern = `%${q}%`;
+  return { q, pattern };
+};
+
 export const searchArticles = (
   query: string,
   offset: number = 0,
   limit: number = 25,
 ): Article[] => {
+  const { q, pattern } = searchLikeParams(query);
   debug(
-    `Searching articles with query: "${query}", offset: ${offset}, limit: ${limit}`,
+    `Searching articles with query: "${q}", offset: ${offset}, limit: ${limit}`,
   );
 
-  const searchTerm = `%${query}%`;
-  const searchQuery = `
+  const searchSql = `
     SELECT * FROM articles
-    WHERE LOWER(title) LIKE LOWER('${searchTerm}') OR LOWER(source) LIKE LOWER('${searchTerm}')
+    WHERE LOWER(title) LIKE LOWER(?) OR LOWER(source) LIKE LOWER(?)
     ORDER BY created_at DESC
     LIMIT ? OFFSET ?`;
 
-  const articles = db.prepare(searchQuery).all(limit, offset) as Article[];
-  debug(`*** Retrieved ${articles.length} search results for "${query}"`);
+  const articles = db
+    .prepare(searchSql)
+    .all(pattern, pattern, limit, offset) as Article[];
+  debug(`*** Retrieved ${articles.length} search results for "${q}"`);
 
   return articles;
 };
 
 export const getSearchResultCount = (query: string): number => {
-  const searchTerm = `%${query}%`;
+  const { pattern } = searchLikeParams(query);
   const result = db
     .prepare(
-      "SELECT COUNT(*) as count FROM articles WHERE title LIKE ? OR source LIKE ?",
+      "SELECT COUNT(*) as count FROM articles WHERE LOWER(title) LIKE LOWER(?) OR LOWER(source) LIKE LOWER(?)",
     )
-    .get(searchTerm, searchTerm) as { count: number };
+    .get(pattern, pattern) as { count: number };
   return result.count;
 };
 

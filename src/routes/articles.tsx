@@ -1,8 +1,9 @@
+import ArticleList from "components/ArticleList";
 import { Hono } from "hono";
 import { getCachedArticles } from "models/article";
 import { debug } from "util/log";
 import { formatRelativeTime } from "util/time";
-import { styles, providerBadge } from "@/styles";
+import { styles } from "@/styles";
 
 export default function articlesRoutes(app: Hono) {
   app.get("/articles", async (c) => {
@@ -30,32 +31,7 @@ export default function articlesRoutes(app: Hono) {
     }
 
     return c.html(
-      <ul class={styles.articles.list}>
-        {articles.map((article, index) => (
-          <li
-            key={article.id}
-            class={`${styles.articles.item} ${styles.animations.signalReveal} ${styles.animations.stagger(index + 1)}`}
-          >
-            <div class={`${styles.articles.card} ${index % 2 === 0 ? 'article-card-odd' : 'article-card-even'}`}>
-              <a
-                href={article.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                class={styles.articles.link}
-              >
-                <h2 class={styles.articles.title}>
-                  {article.title}
-                </h2>
-              </a>
-              <div class={styles.articles.meta}>
-                <span class={styles.util.timestamp}>{article.relativeDate}</span>
-                <span class={styles.header.dividerSm}></span>
-                <span class={providerBadge(article.source)}>{article.source}</span>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>,
+      <ArticleList items={articles} staggerOffset={offset} />,
     );
   });
 }

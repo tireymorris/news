@@ -36,23 +36,23 @@ beforeAll(() => {
     {
       id: "test-1",
       title: "Breaking News: Major Event Happened Today",
-      link: "https://example.com/article1",
+      link: "https://example.com/dash-article-1",
       source: "Test News",
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     },
     {
       id: "test-2",
       title: "Technology Advances in Artificial Intelligence",
-      link: "https://example.com/article2",
+      link: "https://example.com/dash-article-2",
       source: "Tech Daily",
-      created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+      created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     },
     {
       id: "test-3",
       title: "Sports Championship Results Announced",
-      link: "https://example.com/article3",
+      link: "https://example.com/dash-article-3",
       source: "Sports Central",
-      created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
+      created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     },
   ];
 
@@ -73,13 +73,9 @@ describe("Dashboard Route Integration", () => {
     // Assert HTML contains title 'hyperwave'
     expect(html).toContain("<title>hyperwave</title>");
 
-    // Assert articles list is present
-    expect(html).toContain('<ul class="m-0 list-none p-0">');
+    expect(html).toMatch(/<ul class="m-0 list-none p-0/);
 
-    // Assert at least one article with correct CSS classes
-    expect(html).toContain(
-      'class="decoration-none text-teal-500 visited:text-purple-600 hover:underline"',
-    );
+    expect(html).toContain("no-underline");
 
     // Assert relative time is present (should contain time-related text)
     expect(html).toMatch(
@@ -93,11 +89,9 @@ describe("Dashboard Route Integration", () => {
 
     const html = await response.text();
 
-    // Assert search results are displayed
-    expect(html).toContain("Found");
-    expect(html).toContain("result");
+    expect(html).toContain("matching");
+    expect(html).toMatch(/article(s)?/);
 
-    // Should contain the search query in the results text
     expect(html).toContain("test");
   });
 

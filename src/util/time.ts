@@ -6,6 +6,8 @@ export const HOURS = 60 * MINUTES;
 export const DAYS = 24 * HOURS;
 export const WEEKS = 7 * DAYS;
 
+export const ARTICLE_FETCH_INTERVAL_MS = 7 * MINUTES;
+
 const generateRelativeTimeString = (diffInMillis: number): string => {
   const diffInSeconds = Math.floor(diffInMillis / SECONDS);
   const diffInMinutes = Math.floor(diffInMillis / MINUTES);
@@ -65,5 +67,5 @@ export const shouldFetchArticles = (): boolean => {
   const now = new Date();
   const timeDiff = now.getTime() - lastFetchTime.getTime();
 
-  return timeDiff >= 7 * MINUTES;
+  return timeDiff >= ARTICLE_FETCH_INTERVAL_MS;
 };

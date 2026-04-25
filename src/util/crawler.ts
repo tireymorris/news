@@ -1,7 +1,6 @@
 import { load } from "cheerio";
 import { Article, isValidArticle } from "models/article";
 import { log } from "util/log";
-import db from "@/db";
 import { NewsSource } from "../models/newsSources";
 
 export const fetchArticlesFromSource = async (
@@ -27,17 +26,6 @@ export const fetchArticlesFromSource = async (
 
       if (title && relativeLink) {
         const link = new URL(relativeLink, source.baseUrl).href;
-
-        const existingArticle = db
-          .prepare(
-            "SELECT created_at FROM articles WHERE link = ? OR title = ?",
-          )
-          .get(link, title) as { created_at: string } | undefined;
-
-        if (existingArticle) {
-          log(`*** SKIPPING EXISTING: ${source.name}: ${title}`);
-          return;
-        }
 
         const article: Article = {
           id: Bun.hash(title + link).toString(),

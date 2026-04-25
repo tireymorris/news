@@ -1,4 +1,6 @@
-const DEBUG = true;
+const DEBUG =
+  typeof location !== "undefined" &&
+  (location.hostname === "localhost" || location.hostname === "127.0.0.1");
 
 const log = (level, ...messages) =>
   DEBUG && console[level](`hyperwave:`, ...messages);

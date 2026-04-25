@@ -1,5 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll } from "bun:test";
 import server from "../src/server.tsx";
+import db from "../src/db";
+import { ARTICLE_FETCH_INTERVAL_MS } from "../src/util/time";
 
 let app: ReturnType<typeof Bun.serve>;
 
@@ -42,6 +44,24 @@ describe("Status Endpoint Integration", () => {
       expect(new Date(data.nextFetchAvailable).toISOString()).toBe(
         data.nextFetchAvailable,
       );
+    }
+  });
+
+  it("nextFetchAvailable is last fetch time plus the configured interval", async () => {
+    const last = new Date(Date.now() - 60_000).toISOString();
+    db.prepare(
+      `INSERT OR REPLACE INTO fetch_metadata (key, value, updated_at) 
+       VALUES ('last_fetch_time', ?, CURRENT_TIMESTAMP)`,
+    ).run(last);
+    try {
+      const response = await fetch("http://localhost:3001/status");
+      const data = await response.json();
+      const expected = new Date(
+        new Date(last).getTime() + ARTICLE_FETCH_INTERVAL_MS,
+      ).toISOString();
+      expect(data.nextFetchAvailable).toBe(expected);
+    } finally {
+      db.prepare("DELETE FROM fetch_metadata WHERE key = 'last_fetch_time'").run();
     }
   });
 });

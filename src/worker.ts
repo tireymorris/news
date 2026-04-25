@@ -1,7 +1,17 @@
 import { fetchAndStoreArticles } from "models/article";
+import { shouldFetchArticles } from "util/time";
 
-const scheduleArticleUpdate = async () => {
-  await fetchAndStoreArticles();
+const runFetchIfDue = () => {
+  if (shouldFetchArticles()) {
+    return fetchAndStoreArticles();
+  }
+  return Promise.resolve();
+};
+
+void runFetchIfDue();
+
+const scheduleArticleUpdate = () => {
+  void runFetchIfDue();
 };
 
 const runEveryMinute = () => {

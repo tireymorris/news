@@ -87,9 +87,8 @@ describe("Articles Route Integration", () => {
 
     const html = await response.text();
 
-    // Assert HTML contains ul with li elements
-    expect(html).toContain('<ul class="m-0 list-none p-0">');
-    expect(html).toContain('<li class="m-0 mb-1 list-none border-b p-0">');
+    expect(html).toMatch(/<ul class="m-0 list-none p-0/);
+    expect(html).toMatch(/<li class="m-0 list-none p-0/);
   });
 
   it("should return correct article list structure with offset and limit", async () => {
@@ -144,8 +143,7 @@ describe("Articles Route Integration", () => {
 
     const html = await response.text();
 
-    // Assert 'No more articles' message appears
-    expect(html).toContain("No more articles to load");
+    expect(html).toContain("End of archive");
     expect(html).not.toContain('<ul class="m-0 list-none p-0">');
   });
 

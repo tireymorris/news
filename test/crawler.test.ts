@@ -8,7 +8,7 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  db.run("DROP TABLE IF EXISTS articles");
+  db.run("DELETE FROM articles");
 });
 
 describe("Article Fetching Functions", () => {

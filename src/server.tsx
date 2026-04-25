@@ -1,3 +1,4 @@
+import ArticleList from "components/ArticleList";
 import Layout from "components/Layout";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
@@ -8,16 +9,15 @@ import {
   getLastUpdatedTimestamp,
   shouldFetchArticles,
   getLastFetchTime,
+  ARTICLE_FETCH_INTERVAL_MS,
 } from "util/time";
 import {
-  fetchAndStoreArticles,
   getCachedArticles,
   getTotalArticleCount,
   searchArticles,
   getSearchResultCount,
 } from "models/article";
-import { debug } from "util/log";
-import { styles, providerBadge } from "@/styles";
+import { styles } from "@/styles";
 
 const app = new Hono();
 
@@ -26,20 +26,7 @@ app.use("/scripts/*", serveStatic({ root: "./public/" }));
 app.use("*", logger());
 
 app.get("/", async (c) => {
-  const shouldFetch = shouldFetchArticles();
-  const lastFetchTime = getLastFetchTime();
   const searchQuery = c.req.query("q") || "";
-
-  debug(
-    `Dashboard load - Should fetch: ${shouldFetch}, Last fetch: ${lastFetchTime ? lastFetchTime.toISOString() : "never"}`,
-  );
-
-  if (shouldFetch) {
-    debug("Triggering article fetch on dashboard load...");
-    fetchAndStoreArticles().catch((error) => {
-      debug("Error fetching articles on dashboard load:", error);
-    });
-  }
 
   const lastUpdatedDate = getLastUpdatedTimestamp();
   const lastUpdated = lastUpdatedDate
@@ -85,41 +72,16 @@ app.get("/", async (c) => {
               />
               <span class={styles.search.cursor}>_</span>
             </div>
-            {searchQuery && (
+            {searchQuery.trim() && (
               <div class={styles.search.resultsContainer}>
                 <div class={styles.search.resultsText}>
-                  {totalArticles} article{totalArticles !== 1 ? "s" : ""} matching "{searchQuery}"
+                  {totalArticles} article{totalArticles !== 1 ? "s" : ""} matching "{searchQuery.trim()}"
                 </div>
               </div>
             )}
           </div>
-          <ul class={styles.articles.list}>
-            {initialArticles.map((article, index) => (
-              <li
-                key={article.id}
-                class={`${styles.articles.item} ${styles.animations.signalReveal} ${styles.animations.stagger(index + 1)}`}
-              >
-                <div class={`${styles.articles.card} ${index % 2 === 0 ? 'article-card-odd' : 'article-card-even'}`}>
-                  <a
-                    href={article.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class={styles.articles.link}
-                  >
-                    <h2 class={styles.articles.title}>
-                      {article.title}
-                    </h2>
-                  </a>
-                  <div class={styles.articles.meta}>
-                    <span class={styles.util.timestamp}>{article.relativeDate}</span>
-                    <span class={styles.header.dividerSm}></span>
-                    <span class={providerBadge(article.source)}>{article.source}</span>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-          {!searchQuery && (
+          <ArticleList items={initialArticles} />
+          {!searchQuery.trim() && (
             <div
               id="articles"
               method="GET"
@@ -154,7 +116,9 @@ app.get("/status", async (c) => {
       ? `${Math.floor((now.getTime() - lastFetchTime.getTime()) / (1000 * 60))} minutes ago`
       : "never",
     nextFetchAvailable: lastFetchTime
-      ? new Date(lastFetchTime.getTime() + 10 * 60 * 1000).toISOString()
+      ? new Date(
+          lastFetchTime.getTime() + ARTICLE_FETCH_INTERVAL_MS,
+        ).toISOString()
       : "now",
   });
 });
