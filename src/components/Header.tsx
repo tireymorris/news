@@ -6,32 +6,19 @@ type HeaderProps = {
 
 export default function Header({ lastUpdated }: HeaderProps) {
   return (
-    <header
-      class={styles.header.container}
-      href="/"
-      target="body"
-      trigger="click"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        class={styles.header.icon}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M4 6h16M4 10h16M4 14h10M4 18h10M2 4v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4"
-        />
-      </svg>
-      <div class={styles.header.content}>
-        <h1 class={styles.header.title}>hyperwave news</h1>
-        {lastUpdated && (
-          <p class={styles.header.lastUpdated}>Last updated: {lastUpdated}</p>
-        )}
-      </div>
+    <header class={styles.header.container}>
+      <a href="/" target="body" trigger="click" class="block no-underline">
+        <div class={styles.header.content}>
+          <p class={styles.header.lastUpdated}>The Latest in Technology & Culture</p>
+          <h1 class={styles.header.title}>hyperwave</h1>
+          <div class="flex items-center gap-4 mt-4">
+            <span class="date-stamp">Est. 2024</span>
+            <span class="w-px h-4 bg-border"></span>
+            <span class="date-stamp">{lastUpdated ? `Updated ${lastUpdated}` : 'Live'}</span>
+          </div>
+        </div>
+      </a>
+      <div class="h-1 bg-primary w-full"></div>
     </header>
   );
 }

@@ -72,7 +72,7 @@ app.get("/", async (c) => {
               type="text"
               name="q"
               value={searchQuery}
-              placeholder="Search articles by title or source..."
+              placeholder="Search the archive..."
               class={styles.search.input}
               href="/"
               target="body"
@@ -84,24 +84,32 @@ app.get("/", async (c) => {
             {searchQuery && (
               <div class={styles.search.resultsContainer}>
                 <div class={styles.search.resultsText}>
-                  Found {totalArticles} result{totalArticles !== 1 ? "s" : ""}{" "}
-                  for "{searchQuery}"
+                  {totalArticles} article{totalArticles !== 1 ? "s" : ""} matching "{searchQuery}"
                 </div>
               </div>
             )}
           </div>
           <ul class={styles.articles.list}>
-            {initialArticles.map((article) => (
-              <li key={article.id} class={styles.articles.item}>
+            {initialArticles.map((article, index) => (
+              <li 
+                key={article.id} 
+                class={`${styles.articles.item} article-reveal stagger-${Math.min(index + 1, 10)}`}
+              >
                 <div class={styles.articles.card}>
                   <a
                     href={article.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     class={styles.articles.link}
                   >
-                    {article.title}
+                    <h2 class="text-xl md:text-2xl font-serif font-bold leading-tight group-hover:text-primary transition-colors duration-300">
+                      {article.title}
+                    </h2>
                   </a>
                   <div class={styles.articles.meta}>
-                    {article.relativeDate} - {article.source}
+                    <span class="date-stamp">{article.relativeDate}</span>
+                    <span class="w-px h-3 bg-border"></span>
+                    <span class="source-tag">{article.source}</span>
                   </div>
                 </div>
               </li>

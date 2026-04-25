@@ -24,24 +24,33 @@ export default function articlesRoutes(app: Hono) {
     if (articles.length === 0) {
       return c.html(
         <div class={styles.articles.emptyState}>
-          No more articles to load
+          End of archive
         </div>,
       );
     }
 
     return c.html(
       <ul class={styles.articles.list}>
-        {articles.map((article) => (
-          <li key={article.id} class={styles.articles.item}>
+        {articles.map((article, index) => (
+          <li 
+            key={article.id} 
+            class={`${styles.articles.item} article-reveal stagger-${Math.min(index + 1, 10)}`}
+          >
             <div class={styles.articles.card}>
               <a
                 href={article.link}
+                target="_blank"
+                rel="noopener noreferrer"
                 class={styles.articles.link}
               >
-                {article.title}
+                <h2 class="text-xl md:text-2xl font-serif font-bold leading-tight group-hover:text-primary transition-colors duration-300">
+                  {article.title}
+                </h2>
               </a>
               <div class={styles.articles.meta}>
-                {article.relativeDate} - {article.source}
+                <span class="date-stamp">{article.relativeDate}</span>
+                <span class="w-px h-3 bg-border"></span>
+                <span class="source-tag">{article.source}</span>
               </div>
             </div>
           </li>
