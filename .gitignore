@@ -51,9 +51,7 @@ db.sqlite
 *.db.prod-comparison
 *.db.local.old
 *.pid
+backfill.state.json
 backfill-monthly.state.json
-backfill-monthly.log
-backfill-monthly.pid
-backfill-progress.log
-backfill-progress.pid
+backfill.log
 snapshots/

@@ -12,18 +12,25 @@ import {
   type MonthlyState,
 } from "./monthlyScheduler";
 
-const STATE_FILE = process.env.BACKFILL_STATE_FILE || "backfill-monthly.state.json";
+const STATE_FILE = process.env.BACKFILL_STATE_FILE || "backfill.state.json";
+const LEGACY_STATE_FILE = "backfill-monthly.state.json";
 const END_MONTH = process.env.BACKFILL_END_MONTH || "2026-06";
 const FLOOR_MONTH = process.env.BACKFILL_FLOOR_MONTH || "2010-01";
 const SLEEP_MS = Number(process.env.BACKFILL_SLEEP_MS || "500");
 
 const loadState = (): MonthlyState => {
-  if (!existsSync(STATE_FILE)) {
+  const stateFile = existsSync(STATE_FILE)
+    ? STATE_FILE
+    : existsSync(LEGACY_STATE_FILE)
+      ? LEGACY_STATE_FILE
+      : STATE_FILE;
+
+  if (!existsSync(stateFile)) {
     return { completed: [], retry: {} };
   }
 
   return normalizeMonthlyState(
-    JSON.parse(readFileSync(STATE_FILE, "utf8")) as {
+    JSON.parse(readFileSync(stateFile, "utf8")) as {
       completed?: string[];
       retry?: MonthlyState["retry"];
       failed?: Record<string, string[]>;
@@ -74,6 +81,20 @@ const tryMonthOnce = async (month: string): Promise<MonthAttemptResult> => {
           });
         }
       },
+      onApProgress: ({ processedUrls, totalUrls, matchedArticles }) => {
+        if (processedUrls === 0) {
+          logMonth(month, "AP sitemap loaded", { totalUrls });
+          return;
+        }
+
+        const percent = ((processedUrls / totalUrls) * 100).toFixed(1);
+        logMonth(month, "AP article scan", {
+          processedUrls,
+          totalUrls,
+          percent,
+          matchedArticles,
+        });
+      },
     });
 
     logMonth(month, "backfill inserted", {
@@ -108,6 +129,9 @@ const run = async () => {
   console.log(
     `Monthly backfill: ${months.length} months from ${END_MONTH} to ${FLOOR_MONTH}`,
   );
+  console.log(
+    `Progress: ${completed.size}/${months.length} months complete, ${Object.keys(state.retry).length} queued for retry`,
+  );
 
   while (completed.size < months.length) {
     const month = selectNextMonth(months, completed, state.retry);
@@ -128,6 +152,9 @@ const run = async () => {
       delete state.retry[month];
       saveState(state);
       logMonth(month, "marked complete");
+      console.log(
+        `Progress: ${completed.size}/${months.length} months complete, ${Object.keys(state.retry).length} queued for retry`,
+      );
       continue;
     }
 

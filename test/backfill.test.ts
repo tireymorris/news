@@ -253,4 +253,46 @@ describe("backfill adapters", () => {
     ]);
     expect(articles).toHaveLength(2);
   });
+
+  it("reports AP scan progress while fetching a month", async () => {
+    const progressEvents: {
+      processedUrls: number;
+      totalUrls: number;
+      matchedArticles: number;
+    }[] = [];
+
+    await fetchApArticlesForMonth({
+      month: "2024-05",
+      onProgress: (progress) => progressEvents.push({ ...progress }),
+      fetchText: async (url) => {
+        if (url === "https://apnews.com/sitemap.xml") {
+          return apSitemapIndex;
+        }
+
+        if (url === "https://apnews.com/ap-sitemap-202405.xml") {
+          return apSitemap;
+        }
+
+        if (
+          url ===
+          "https://apnews.com/article/an-older-ap-story-with-enough-words-abc123"
+        ) {
+          return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
+        }
+
+        return `<meta property="article:published_time" content="2024-05-02T09:00:00-04:00">`;
+      },
+    });
+
+    expect(progressEvents[0]).toEqual({
+      processedUrls: 0,
+      totalUrls: 2,
+      matchedArticles: 0,
+    });
+    expect(progressEvents.at(-1)).toEqual({
+      processedUrls: 2,
+      totalUrls: 2,
+      matchedArticles: 2,
+    });
+  });
 });

@@ -4,6 +4,12 @@ import { extractPublishedAtFromHtml } from "util/publishedDate";
 
 export type FetchText = (url: string) => Promise<string>;
 
+export interface ApBackfillProgress {
+  processedUrls: number;
+  totalUrls: number;
+  matchedArticles: number;
+}
+
 export interface BackfillRequest {
   date: string;
   fetchText?: FetchText;
@@ -140,12 +146,35 @@ const titleFromApUrl = (url: string): string => {
     .join(" ");
 };
 
+const countApArticleUrls = (xml: string): number => {
+  const $ = load(xml, { xmlMode: true });
+  return $("url")
+    .toArray()
+    .filter((element) => $(element).find("loc").first().text().includes("/article/"))
+    .length;
+};
+
+const reportApProgress = (
+  progress: ApBackfillProgress,
+  onProgress?: (progress: ApBackfillProgress) => void,
+) => {
+  if (
+    progress.processedUrls === 1 ||
+    progress.processedUrls % 50 === 0 ||
+    progress.processedUrls === progress.totalUrls
+  ) {
+    onProgress?.(progress);
+  }
+};
+
 const parseApSitemapArticles = async (
   xml: string,
   publishedOn: (publishedAt: string) => boolean,
   fetchText: FetchText,
   sleepMs: number,
   sleep: (milliseconds: number) => Promise<void>,
+  progress?: ApBackfillProgress,
+  onProgress?: (progress: ApBackfillProgress) => void,
 ): Promise<Article[]> => {
   const $ = load(xml, { xmlMode: true });
   const articles: Article[] = [];
@@ -167,11 +196,22 @@ const parseApSitemapArticles = async (
     try {
       publishedAt = extractPublishedAtFromHtml(await fetchText(loc));
     } catch (error) {
+      if (progress) {
+        progress.processedUrls += 1;
+        reportApProgress(progress, onProgress);
+      }
       console.error(`Skipping AP backfill detail page ${loc}: ${error}`);
       continue;
     }
 
+    if (progress) {
+      progress.processedUrls += 1;
+    }
+
     if (!publishedAt || !publishedOn(publishedAt)) {
+      if (progress) {
+        reportApProgress(progress, onProgress);
+      }
       continue;
     }
 
@@ -183,6 +223,13 @@ const parseApSitemapArticles = async (
     );
     if (article) {
       articles.push(article);
+      if (progress) {
+        progress.matchedArticles += 1;
+      }
+    }
+
+    if (progress) {
+      reportApProgress(progress, onProgress);
     }
 
     if (sleepMs > 0 && index < sitemapArticles.length - 1) {
@@ -213,24 +260,47 @@ export const fetchApArticlesForMonth = async ({
   fetchText = defaultFetchText,
   sleepMs = 0,
   sleep = defaultSleep,
+  onProgress,
 }: {
   month: string;
   fetchText?: FetchText;
   sleepMs?: number;
   sleep?: (milliseconds: number) => Promise<void>;
+  onProgress?: (progress: ApBackfillProgress) => void;
 }): Promise<Article[]> => {
   const indexXml = await fetchText("https://apnews.com/sitemap.xml");
   const sitemapUrls = parseApSitemapIndex(indexXml, `${month}-01`);
-  const articles: Article[] = [];
+  const sitemapXmls: string[] = [];
 
   for (const sitemapUrl of sitemapUrls) {
+    sitemapXmls.push(await fetchText(sitemapUrl));
+  }
+
+  const progress: ApBackfillProgress = {
+    processedUrls: 0,
+    totalUrls: sitemapXmls.reduce(
+      (total, xml) => total + countApArticleUrls(xml),
+      0,
+    ),
+    matchedArticles: 0,
+  };
+
+  if (progress.totalUrls > 0) {
+    onProgress?.(progress);
+  }
+
+  const articles: Article[] = [];
+
+  for (const sitemapXml of sitemapXmls) {
     articles.push(
       ...(await parseApSitemapArticles(
-        await fetchText(sitemapUrl),
+        sitemapXml,
         (publishedAt) => publishedAt.startsWith(month),
         fetchText,
         sleepMs,
         sleep,
+        progress,
+        onProgress,
       )),
     );
   }

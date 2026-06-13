@@ -6,13 +6,11 @@ Backfill NPR and AP News articles as far back as sources allow, validate data qu
 
 ## Current status
 
-Autonomous monthly backfill runs locally with auto-restart on transient failures:
+Run backfill in the foreground; output goes to stdout:
 
-- **Orchestrator:** `bun run backfill:monthly` → supervisor + `src/backfill/monthlyRun.ts`
-- **Direction:** backward from `2026-06` to `2010-01` (198 months)
-- **State file:** `backfill-monthly.state.json` (resume checkpoint; not committed)
-- **Log:** `backfill-monthly.log`
-- **PID:** `backfill-monthly.pid`
+- **Start:** `bun run backfill`
+- **Save a log:** `bun run backfill 2>&1 | tee backfill.log`
+- **State:** `backfill.state.json` (resume checkpoint; not committed)
 
 Completed via validation skip (crawler data already good): `2026-06` through `2025-06`.
 
@@ -32,8 +30,8 @@ Currently working backward from `2025-04`.
 
 | Command | Purpose |
 |---------|---------|
-| `bun run backfill:monthly` | Start/resume autonomous monthly backfill |
-| `bun run backfill YYYY-MM-DD [YYYY-MM-DD] --source=NPR\|AP News` | Manual date-range backfill |
+| `bun run backfill` | Start/resume monthly backfill (stdout) |
+| `bun run backfill:range YYYY-MM-DD [YYYY-MM-DD] --source=NPR\|AP News` | Manual date-range backfill |
 | `bun run db:validate` | Full DB quality report |
 | `MONTH=2025-05 STRICT=1 bun run db:validate` | Strict per-month validation |
 | `bun run db:snapshot baseline` | Snapshot counts/links before prod push |

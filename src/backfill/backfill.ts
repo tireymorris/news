@@ -5,6 +5,7 @@ import {
   fetchApArticlesForMonth,
   hasApSitemapForMonth,
   nprBackfillAdapter,
+  type ApBackfillProgress,
 } from "./adapters";
 import { monthBounds } from "./month";
 
@@ -86,6 +87,7 @@ export interface BackfillRangeOptions {
   sleepMs?: number;
   sleep?: (milliseconds: number) => Promise<void>;
   onProgress?: (progress: BackfillProgress) => void;
+  onApProgress?: (progress: ApBackfillProgress) => void;
 }
 
 const defaultSleep = (milliseconds: number) =>
@@ -147,6 +149,7 @@ export const storeBackfillMonth = async (
       month,
       sleepMs: options.sleepMs,
       sleep: options.sleep,
+      onProgress: options.onApProgress,
     });
     apInserted = apArticles.filter(insertArticle).length;
   }
