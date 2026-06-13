@@ -140,9 +140,9 @@ const titleFromApUrl = (url: string): string => {
     .join(" ");
 };
 
-const parseApSitemap = async (
+const parseApSitemapArticles = async (
   xml: string,
-  date: string,
+  publishedOn: (publishedAt: string) => boolean,
   fetchText: FetchText,
   sleepMs: number,
   sleep: (milliseconds: number) => Promise<void>,
@@ -171,7 +171,7 @@ const parseApSitemap = async (
       continue;
     }
 
-    if (!publishedAt?.startsWith(date)) {
+    if (!publishedAt || !publishedOn(publishedAt)) {
       continue;
     }
 
@@ -191,6 +191,59 @@ const parseApSitemap = async (
   }
 
   return articles;
+};
+
+const parseApSitemap = async (
+  xml: string,
+  date: string,
+  fetchText: FetchText,
+  sleepMs: number,
+  sleep: (milliseconds: number) => Promise<void>,
+): Promise<Article[]> =>
+  parseApSitemapArticles(
+    xml,
+    (publishedAt) => publishedAt.startsWith(date),
+    fetchText,
+    sleepMs,
+    sleep,
+  );
+
+export const fetchApArticlesForMonth = async ({
+  month,
+  fetchText = defaultFetchText,
+  sleepMs = 0,
+  sleep = defaultSleep,
+}: {
+  month: string;
+  fetchText?: FetchText;
+  sleepMs?: number;
+  sleep?: (milliseconds: number) => Promise<void>;
+}): Promise<Article[]> => {
+  const indexXml = await fetchText("https://apnews.com/sitemap.xml");
+  const sitemapUrls = parseApSitemapIndex(indexXml, `${month}-01`);
+  const articles: Article[] = [];
+
+  for (const sitemapUrl of sitemapUrls) {
+    articles.push(
+      ...(await parseApSitemapArticles(
+        await fetchText(sitemapUrl),
+        (publishedAt) => publishedAt.startsWith(month),
+        fetchText,
+        sleepMs,
+        sleep,
+      )),
+    );
+  }
+
+  return articles;
+};
+
+export const hasApSitemapForMonth = async (
+  month: string,
+  fetchText: FetchText = defaultFetchText,
+): Promise<boolean> => {
+  const indexXml = await fetchText("https://apnews.com/sitemap.xml");
+  return parseApSitemapIndex(indexXml, `${month}-01`).length > 0;
 };
 
 export const apNewsBackfillAdapter: BackfillAdapter = {

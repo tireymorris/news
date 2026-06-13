@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   apNewsBackfillAdapter,
+  fetchApArticlesForMonth,
   nprBackfillAdapter,
   parseApSitemapIndex,
 } from "../src/backfill/adapters";
@@ -216,5 +217,40 @@ describe("backfill adapters", () => {
     expect(parseApSitemapIndex(apSitemapIndex, "2024-05-01")).toEqual([
       "https://apnews.com/ap-sitemap-202405.xml",
     ]);
+  });
+
+  it("fetches AP articles once per month instead of once per day", async () => {
+    const fetchedUrls: string[] = [];
+
+    const articles = await fetchApArticlesForMonth({
+      month: "2024-05",
+      fetchText: async (url) => {
+        fetchedUrls.push(url);
+        if (url === "https://apnews.com/sitemap.xml") {
+          return apSitemapIndex;
+        }
+
+        if (url === "https://apnews.com/ap-sitemap-202405.xml") {
+          return apSitemap;
+        }
+
+        if (
+          url ===
+          "https://apnews.com/article/an-older-ap-story-with-enough-words-abc123"
+        ) {
+          return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
+        }
+
+        return `<meta property="article:published_time" content="2024-05-02T09:00:00-04:00">`;
+      },
+    });
+
+    expect(fetchedUrls).toEqual([
+      "https://apnews.com/sitemap.xml",
+      "https://apnews.com/ap-sitemap-202405.xml",
+      "https://apnews.com/article/an-older-ap-story-with-enough-words-abc123",
+      "https://apnews.com/article/a-different-day-story-with-enough-words-def456",
+    ]);
+    expect(articles).toHaveLength(2);
   });
 });

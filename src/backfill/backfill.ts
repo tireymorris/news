@@ -1,5 +1,12 @@
 import { insertArticle, Article } from "models/article";
-import { backfillAdapters, BackfillAdapter } from "./adapters";
+import {
+  backfillAdapters,
+  BackfillAdapter,
+  fetchApArticlesForMonth,
+  hasApSitemapForMonth,
+  nprBackfillAdapter,
+} from "./adapters";
+import { monthBounds } from "./month";
 
 const ISO_DATE_LENGTH = 10;
 
@@ -115,4 +122,34 @@ export const storeBackfillRange = async (
   }
 
   return insertedArticles;
+};
+
+export interface MonthBackfillResult {
+  month: string;
+  nprInserted: number;
+  apInserted: number;
+  requireAp: boolean;
+}
+
+export const storeBackfillMonth = async (
+  month: string,
+  options: BackfillRangeOptions = {},
+): Promise<MonthBackfillResult> => {
+  const { startDate, endDate } = monthBounds(month);
+  const nprInserted = (
+    await storeBackfillRange(startDate, endDate, [nprBackfillAdapter], options)
+  ).length;
+  const requireAp = await hasApSitemapForMonth(month);
+  let apInserted = 0;
+
+  if (requireAp) {
+    const apArticles = await fetchApArticlesForMonth({
+      month,
+      sleepMs: options.sleepMs,
+      sleep: options.sleep,
+    });
+    apInserted = apArticles.filter(insertArticle).length;
+  }
+
+  return { month, nprInserted, apInserted, requireAp };
 };

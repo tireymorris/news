@@ -49,3 +49,5 @@ db.sqlite
 *.db
 *.db.backup.*
 *.pid
+backfill-monthly.state.json
+snapshots/
