@@ -29,6 +29,22 @@ describe("repairPublishedAtForArticles", () => {
     ]);
   });
 
+  it("skips articles whose detail pages fail", async () => {
+    const updates: string[] = [];
+
+    const repaired = await repairPublishedAtForArticles([article], {
+      fetchText: async () => {
+        throw new Error("timeout");
+      },
+      updatePublishedAt: async (id) => {
+        updates.push(id);
+      },
+    });
+
+    expect(repaired).toBe(0);
+    expect(updates).toEqual([]);
+  });
+
   it("sleeps between detail page requests", async () => {
     const sleeps: number[] = [];
 

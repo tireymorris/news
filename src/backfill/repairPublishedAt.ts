@@ -23,13 +23,19 @@ export const repairPublishedAtForArticles = async (
   const sleepMs = options.sleepMs || 0;
 
   for (const [index, article] of articles.entries()) {
-    const publishedAt = extractPublishedAtFromHtml(
-      await options.fetchText(article.link),
-    );
+    try {
+      const publishedAt = extractPublishedAtFromHtml(
+        await options.fetchText(article.link),
+      );
 
-    if (publishedAt) {
-      await options.updatePublishedAt(article.id, publishedAt);
-      repaired += 1;
+      if (publishedAt) {
+        await options.updatePublishedAt(article.id, publishedAt);
+        repaired += 1;
+      }
+    } catch (error) {
+      console.error(
+        `Skipping published_at repair for ${article.link}: ${error}`,
+      );
     }
 
     if (sleepMs > 0 && index < articles.length - 1) {
