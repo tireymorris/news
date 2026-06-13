@@ -48,6 +48,12 @@ worker
 db.sqlite
 *.db
 *.db.backup.*
+*.db.prod-comparison
+*.db.local.old
 *.pid
 backfill-monthly.state.json
+backfill-monthly.log
+backfill-monthly.pid
+backfill-progress.log
+backfill-progress.pid
 snapshots/

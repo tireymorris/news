@@ -3,24 +3,32 @@ import { monthBounds, monthsBackward } from "./month";
 import { storeBackfillMonth } from "./backfill";
 import { validateMonth } from "./validateMonth";
 import { hasApSitemapForMonth } from "./adapters";
+import { sleep } from "./retry";
+import {
+  enqueueRetry,
+  normalizeMonthlyState,
+  retryWaitMs,
+  selectNextMonth,
+  type MonthlyState,
+} from "./monthlyScheduler";
 
 const STATE_FILE = process.env.BACKFILL_STATE_FILE || "backfill-monthly.state.json";
 const END_MONTH = process.env.BACKFILL_END_MONTH || "2026-06";
 const FLOOR_MONTH = process.env.BACKFILL_FLOOR_MONTH || "2010-01";
 const SLEEP_MS = Number(process.env.BACKFILL_SLEEP_MS || "500");
-const MAX_RETRIES = Number(process.env.BACKFILL_MAX_RETRIES || "2");
-
-interface MonthlyState {
-  completed: string[];
-  failed: Record<string, string[]>;
-}
 
 const loadState = (): MonthlyState => {
   if (!existsSync(STATE_FILE)) {
-    return { completed: [], failed: {} };
+    return { completed: [], retry: {} };
   }
 
-  return JSON.parse(readFileSync(STATE_FILE, "utf8")) as MonthlyState;
+  return normalizeMonthlyState(
+    JSON.parse(readFileSync(STATE_FILE, "utf8")) as {
+      completed?: string[];
+      retry?: MonthlyState["retry"];
+      failed?: Record<string, string[]>;
+    },
+  );
 };
 
 const saveState = (state: MonthlyState) => {
@@ -36,43 +44,60 @@ const logMonth = (
   console.log(`[${month}] ${message}${suffix}`);
 };
 
-const backfillAndValidateMonth = async (
-  month: string,
-  attempt: number,
-): Promise<{ ok: boolean; issues: string[] }> => {
-  const bounds = monthBounds(month);
-  logMonth(month, `backfill attempt ${attempt}`, bounds);
+type MonthAttemptResult =
+  | { status: "complete" }
+  | { status: "retry"; issues: string[] };
 
-  const result = await storeBackfillMonth(month, {
-    sleepMs: SLEEP_MS,
-    onProgress: ({ date, processedDates, inserted, totalDates }) => {
-      if (
-        processedDates === 1 ||
-        processedDates % 10 === 0 ||
-        processedDates === totalDates
-      ) {
-        logMonth(month, `NPR day ${date}`, {
-          processedDates,
-          totalDates,
-          inserted,
-        });
-      }
-    },
-  });
+const tryMonthOnce = async (month: string): Promise<MonthAttemptResult> => {
+  try {
+    const requireAp = await hasApSitemapForMonth(month);
+    const precheck = validateMonth(month, { requireAp });
+    if (precheck.ok) {
+      logMonth(month, "validation already passes", { counts: precheck.counts });
+      return { status: "complete" };
+    }
 
-  logMonth(month, "backfill inserted", {
-    nprInserted: result.nprInserted,
-    apInserted: result.apInserted,
-    requireAp: result.requireAp,
-  });
+    logMonth(month, "backfill attempt", monthBounds(month));
 
-  const validation = validateMonth(month, { requireAp: result.requireAp });
-  logMonth(month, validation.ok ? "validation passed" : "validation failed", {
-    counts: validation.counts,
-    issues: validation.issues,
-  });
+    const result = await storeBackfillMonth(month, {
+      sleepMs: SLEEP_MS,
+      onProgress: ({ date, processedDates, inserted, totalDates }) => {
+        if (
+          processedDates === 1 ||
+          processedDates % 10 === 0 ||
+          processedDates === totalDates
+        ) {
+          logMonth(month, `NPR day ${date}`, {
+            processedDates,
+            totalDates,
+            inserted,
+          });
+        }
+      },
+    });
 
-  return { ok: validation.ok, issues: validation.issues };
+    logMonth(month, "backfill inserted", {
+      nprInserted: result.nprInserted,
+      apInserted: result.apInserted,
+      requireAp: result.requireAp,
+    });
+
+    const validation = validateMonth(month, { requireAp: result.requireAp });
+    logMonth(month, validation.ok ? "validation passed" : "validation failed", {
+      counts: validation.counts,
+      issues: validation.issues,
+    });
+
+    if (validation.ok) {
+      return { status: "complete" };
+    }
+
+    return { status: "retry", issues: validation.issues };
+  } catch (error) {
+    const issue = error instanceof Error ? error.message : String(error);
+    logMonth(month, "attempt failed, queued for retry", { issue });
+    return { status: "retry", issues: [issue] };
+  }
 };
 
 const run = async () => {
@@ -84,46 +109,31 @@ const run = async () => {
     `Monthly backfill: ${months.length} months from ${END_MONTH} to ${FLOOR_MONTH}`,
   );
 
-  for (const month of months) {
-    if (completed.has(month)) {
-      logMonth(month, "skip already completed");
+  while (completed.size < months.length) {
+    const month = selectNextMonth(months, completed, state.retry);
+    if (!month) {
+      const waitMs = retryWaitMs(months, completed, state.retry);
+      const queued = Object.keys(state.retry).filter((key) => !completed.has(key));
+      console.log(
+        `Waiting ${waitMs}ms for retry backoff (${queued.length} queued, ${completed.size}/${months.length} complete)`,
+      );
+      await sleep(Math.max(waitMs, 1000));
       continue;
     }
 
-    const requireAp = await hasApSitemapForMonth(month);
-    const precheck = validateMonth(month, { requireAp });
-    if (precheck.ok) {
-      logMonth(month, "skip backfill, validation already passes", {
-        counts: precheck.counts,
-      });
+    const result = await tryMonthOnce(month);
+    if (result.status === "complete") {
       completed.add(month);
       state.completed = [...completed].sort().reverse();
+      delete state.retry[month];
       saveState(state);
+      logMonth(month, "marked complete");
       continue;
     }
 
-    let ok = false;
-    let issues: string[] = [];
-
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
-      ({ ok, issues } = await backfillAndValidateMonth(month, attempt));
-      if (ok) {
-        break;
-      }
-    }
-
-    if (!ok) {
-      state.failed[month] = issues;
-      saveState(state);
-      console.error(`Stopping at ${month}: ${issues.join(", ")}`);
-      process.exit(1);
-    }
-
-    completed.add(month);
-    state.completed = [...completed].sort().reverse();
-    delete state.failed[month];
+    const entry = enqueueRetry(state.retry, month, result.issues);
     saveState(state);
-    logMonth(month, "marked complete");
+    logMonth(month, "queued for retry, continuing with other months", entry);
   }
 
   console.log(`Monthly backfill complete through ${FLOOR_MONTH}.`);

@@ -3,7 +3,7 @@ import { debug, log } from "util/log";
 import { NewsSource, newsSources } from "models/newsSources";
 import { z } from "zod";
 import { fetchArticlesFromSource } from "util/crawler";
-import { updateLastFetchTime } from "util/time";
+import { formatArticleTime, updateLastFetchTime } from "util/time";
 
 export interface Article {
   id: string;
@@ -13,6 +13,18 @@ export interface Article {
   created_at: string;
   published_at?: string;
 }
+
+export const articlePublishedAt = (
+  article: Pick<Article, "published_at" | "created_at">,
+): Date => new Date(article.published_at || article.created_at);
+
+export const toArticleListItem = (article: Article) => ({
+  id: article.id,
+  title: article.title,
+  link: article.link,
+  source: article.source,
+  relativeDate: formatArticleTime(articlePublishedAt(article)),
+});
 
 export const articleSchema = z.object({
   title: z

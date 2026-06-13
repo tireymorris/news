@@ -1,8 +1,7 @@
 import ArticleList from "components/ArticleList";
 import { Hono } from "hono";
-import { getCachedArticles } from "models/article";
+import { getCachedArticles, toArticleListItem } from "models/article";
 import { debug } from "util/log";
-import { formatRelativeTime } from "util/time";
 import { styles } from "@/styles";
 
 export default function articlesRoutes(app: Hono) {
@@ -15,12 +14,7 @@ export default function articlesRoutes(app: Hono) {
     debug("Offset:", offset);
     debug("Limit:", limit);
 
-    const articles = getCachedArticles(offset, limit).map((article) => ({
-      ...article,
-      relativeDate: formatRelativeTime(
-        new Date(article.published_at || article.created_at),
-      ),
-    }));
+    const articles = getCachedArticles(offset, limit).map(toArticleListItem);
 
     debug("Articles retrieved:", articles.length);
 

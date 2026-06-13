@@ -6,16 +6,17 @@ Backfill NPR and AP News articles as far back as sources allow, validate data qu
 
 ## Current status
 
-Autonomous monthly backfill is running locally:
+Autonomous monthly backfill runs locally with auto-restart on transient failures:
 
-- **Orchestrator:** `bun run backfill:monthly` → `src/backfill/monthlyRun.ts`
+- **Orchestrator:** `bun run backfill:monthly` → supervisor + `src/backfill/monthlyRun.ts`
 - **Direction:** backward from `2026-06` to `2010-01` (198 months)
 - **State file:** `backfill-monthly.state.json` (resume checkpoint; not committed)
-- **Log:** `backfill-monthly-*.log`
+- **Log:** `backfill-monthly.log`
+- **PID:** `backfill-monthly.pid`
 
 Completed via validation skip (crawler data already good): `2026-06` through `2025-06`.
 
-First month being backfilled: `2025-05` and earlier.
+Currently working backward from `2025-04`.
 
 ## How each month works
 
@@ -23,8 +24,9 @@ First month being backfilled: `2025-05` and earlier.
 2. Backfill NPR day-by-day for the month (`--sleep-ms=500`).
 3. Backfill AP News once per month via optimized sitemap fetch (not per-day).
 4. Validate month: article counts, no duplicate links/titles, no null `published_at`.
-5. Retry up to 2 times on failure; stop and record issue if still failing.
-6. Mark month complete in state file and continue to previous month.
+5. On any failed attempt, queue the month for retry with exponential backoff and continue with other months.
+6. Retry queue is revisited until every month validates; nothing is permanently failed.
+7. Mark month complete in state file and continue until all months are done.
 
 ## Tooling
 

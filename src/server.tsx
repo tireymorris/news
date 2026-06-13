@@ -16,6 +16,7 @@ import {
   getTotalArticleCount,
   searchArticles,
   getSearchResultCount,
+  toArticleListItem,
 } from "models/article";
 import { styles } from "@/styles";
 
@@ -37,16 +38,10 @@ app.get("/", async (c) => {
   let totalArticles;
 
   if (searchQuery.trim()) {
-    initialArticles = searchArticles(searchQuery, 0, 1000).map((article) => ({
-      ...article,
-      relativeDate: formatRelativeTime(new Date(article.created_at)),
-    }));
+    initialArticles = searchArticles(searchQuery, 0, 1000).map(toArticleListItem);
     totalArticles = getSearchResultCount(searchQuery);
   } else {
-    initialArticles = getCachedArticles(0, 25).map((article) => ({
-      ...article,
-      relativeDate: formatRelativeTime(new Date(article.created_at)),
-    }));
+    initialArticles = getCachedArticles(0, 25).map(toArticleListItem);
     totalArticles = getTotalArticleCount();
   }
 

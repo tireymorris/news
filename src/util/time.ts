@@ -26,18 +26,38 @@ const generateRelativeTimeString = (diffInMillis: number): string => {
   return `${diffInWeeks} weeks ago`;
 };
 
+const ARCHIVE_DATE_THRESHOLD_MS = 4 * WEEKS;
+
 export const formatRelativeTime = (date: Date): string => {
   const now = new Date();
   const diffInMillis = now.getTime() - date.getTime();
   return generateRelativeTimeString(diffInMillis);
 };
 
+export const formatArticleTime = (date: Date): string => {
+  const diffInMillis = new Date().getTime() - date.getTime();
+  if (diffInMillis >= ARCHIVE_DATE_THRESHOLD_MS) {
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  return generateRelativeTimeString(diffInMillis);
+};
+
 export const getLastUpdatedTimestamp = (): Date | null => {
   const result = db
-    .prepare("SELECT created_at FROM articles ORDER BY created_at DESC LIMIT 1")
-    .get() as { created_at: string } | undefined;
+    .prepare(
+      `SELECT COALESCE(published_at, created_at) AS article_at
+       FROM articles
+       ORDER BY article_at DESC
+       LIMIT 1`,
+    )
+    .get() as { article_at: string } | undefined;
 
-  return result ? new Date(result.created_at) : null;
+  return result ? new Date(result.article_at) : null;
 };
 
 export const getLastFetchTime = (): Date | null => {

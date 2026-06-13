@@ -5,6 +5,7 @@ import {
   HOURS,
   DAYS,
   WEEKS,
+  formatArticleTime,
   formatRelativeTime,
 } from "util/time";
 
@@ -77,5 +78,17 @@ describe("formatRelativeTime", () => {
   it('should default to "a long time ago" when delta is more than 4 weeks', () => {
     const date = new Date(Date.now() - 5 * WEEKS);
     expect(formatRelativeTime(date)).toBe("5 weeks ago");
+  });
+});
+
+describe("formatArticleTime", () => {
+  it("shows relative time for recent articles", () => {
+    const date = new Date(Date.now() - 5 * MINUTES);
+    expect(formatArticleTime(date)).toBe("5 minutes ago");
+  });
+
+  it("shows the calendar date for archive articles", () => {
+    const date = new Date("2010-01-01T05:00:00.000Z");
+    expect(formatArticleTime(date)).toBe("Jan 1, 2010");
   });
 });
