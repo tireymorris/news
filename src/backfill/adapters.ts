@@ -128,14 +128,13 @@ const parseApSitemap = async (
 
   for (const element of $("url").toArray()) {
     const loc = $(element).find("loc").first().text().trim();
-    const sitemapDate = $(element).find("lastmod").first().text().trim();
     const sitemapTitle = $(element)
       .find("news\\:title, title")
       .first()
       .text()
       .trim();
 
-    if (!loc.includes("/article/") || !sitemapDate.startsWith(date)) {
+    if (!loc.includes("/article/")) {
       continue;
     }
 

@@ -30,7 +30,7 @@ const apSitemap = `<?xml version="1.0" encoding="UTF-8"?>
     </url>
     <url>
       <loc>https://apnews.com/article/a-different-day-story-with-enough-words-def456</loc>
-      <lastmod>2024-05-02T10:15:00-04:00</lastmod>
+      <lastmod>2021-08-13T10:15:00-04:00</lastmod>
     </url>
   </urlset>`;
 
@@ -74,10 +74,11 @@ describe("backfill adapters", () => {
           return apSitemap;
         }
 
-        expect(url).toBe(
-          "https://apnews.com/article/an-older-ap-story-with-enough-words-abc123",
-        );
-        return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
+        if (url === "https://apnews.com/article/an-older-ap-story-with-enough-words-abc123") {
+          return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
+        }
+
+        return `<meta property="article:published_time" content="2024-05-02T09:00:00-04:00">`;
       },
     });
 
@@ -93,6 +94,31 @@ describe("backfill adapters", () => {
     ]);
   });
 
+  it("uses AP detail-page published dates when sitemap lastmod is a later migration date", async () => {
+    const articles = await apNewsBackfillAdapter.fetchArticles({
+      date: "2024-05-02",
+      fetchText: async (url) => {
+        if (url === "https://apnews.com/sitemap.xml") {
+          return apSitemapIndex;
+        }
+
+        if (url === "https://apnews.com/ap-sitemap-202405.xml") {
+          return apSitemap;
+        }
+
+        if (url === "https://apnews.com/article/a-different-day-story-with-enough-words-def456") {
+          return `<meta property="article:published_time" content="2024-05-02T09:00:00-04:00">`;
+        }
+
+        return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
+      },
+    });
+
+    expect(articles.map((article) => article.link)).toEqual([
+      "https://apnews.com/article/a-different-day-story-with-enough-words-def456",
+    ]);
+  });
+
   it("filters AP sitemap articles to the requested date", async () => {
     const articles = await apNewsBackfillAdapter.fetchArticles({
       date: "2024-05-02",
@@ -105,7 +131,11 @@ describe("backfill adapters", () => {
           return apSitemap;
         }
 
-        return `<meta property="article:published_time" content="2024-05-02T09:00:00-04:00">`;
+        if (url === "https://apnews.com/article/a-different-day-story-with-enough-words-def456") {
+          return `<meta property="article:published_time" content="2024-05-02T09:00:00-04:00">`;
+        }
+
+        return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
       },
     });
 
