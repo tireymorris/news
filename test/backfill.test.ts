@@ -10,6 +10,10 @@ const nprArchiveHtml = `
     <h2 class="title"><a href="/2024/05/01/123456789/older-story-title">An Older NPR Story With Enough Words</a></h2>
     <time datetime="2024-05-01T14:30:00-04:00">May 1, 2024</time>
   </article>
+  <article class="item">
+    <h2 class="title"><a href="/2024/04/30/123456788/previous-day-title">Previous Day NPR Story With Enough Words</a></h2>
+    <time datetime="2024-04-30">April 30, 2024</time>
+  </article>
 `;
 
 const apSitemapIndex = `<?xml version="1.0" encoding="UTF-8"?>

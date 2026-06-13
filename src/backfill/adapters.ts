@@ -71,7 +71,7 @@ export const nprBackfillAdapter: BackfillAdapter = {
       const href = linkElement.attr("href");
       const publishedAt = $(element).find("time[datetime]").attr("datetime");
 
-      if (!title || !href || !publishedAt) {
+      if (!title || !href || !publishedAt.startsWith(date)) {
         return;
       }
 
