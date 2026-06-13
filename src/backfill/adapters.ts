@@ -116,7 +116,7 @@ const titleFromApUrl = (url: string): string => {
     .join(" ");
 };
 
-const parseApSitemap = (xml: string): Article[] => {
+const parseApSitemap = (xml: string, date: string): Article[] => {
   const $ = load(xml, { xmlMode: true });
   const articles: Article[] = [];
 
@@ -129,7 +129,7 @@ const parseApSitemap = (xml: string): Article[] => {
       .text()
       .trim();
 
-    if (!loc.includes("/article/") || !publishedAt) {
+    if (!loc.includes("/article/") || !publishedAt.startsWith(date)) {
       return;
     }
 
@@ -155,7 +155,7 @@ export const apNewsBackfillAdapter: BackfillAdapter = {
     const articles: Article[] = [];
 
     for (const sitemapUrl of sitemapUrls) {
-      articles.push(...parseApSitemap(await fetchText(sitemapUrl)));
+      articles.push(...parseApSitemap(await fetchText(sitemapUrl), date));
     }
 
     return articles;

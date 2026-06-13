@@ -21,6 +21,20 @@ export const backfillDates = (
   return dates;
 };
 
+export const selectBackfillAdapters = (
+  adapters: BackfillAdapter[],
+  source?: string,
+): BackfillAdapter[] => {
+  if (!source) {
+    return adapters;
+  }
+
+  const normalizedSource = source.toLowerCase();
+  return adapters.filter(
+    (adapter) => adapter.name.toLowerCase() === normalizedSource,
+  );
+};
+
 export const fetchBackfillArticles = async (
   date: string,
   adapters: BackfillAdapter[] = backfillAdapters,
@@ -36,19 +50,21 @@ export const fetchBackfillArticles = async (
 
 export const storeBackfillArticles = async (
   date: string,
+  adapters: BackfillAdapter[] = backfillAdapters,
 ): Promise<Article[]> => {
-  const articles = await fetchBackfillArticles(date);
+  const articles = await fetchBackfillArticles(date, adapters);
   return articles.filter(insertArticle);
 };
 
 export const storeBackfillRange = async (
   startDate: string,
   endDate = startDate,
+  adapters: BackfillAdapter[] = backfillAdapters,
 ): Promise<Article[]> => {
   const insertedArticles: Article[] = [];
 
   for (const date of backfillDates(startDate, endDate)) {
-    insertedArticles.push(...(await storeBackfillArticles(date)));
+    insertedArticles.push(...(await storeBackfillArticles(date, adapters)));
   }
 
   return insertedArticles;

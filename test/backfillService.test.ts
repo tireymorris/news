@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { backfillDates, fetchBackfillArticles } from "../src/backfill/backfill";
+import {
+  backfillDates,
+  fetchBackfillArticles,
+  selectBackfillAdapters,
+} from "../src/backfill/backfill";
 
 const olderArticle = {
   id: "older-article",
@@ -16,6 +20,22 @@ describe("backfill service", () => {
       "2024-05-02",
       "2024-05-03",
     ]);
+  });
+
+  it("selects adapters by source name", () => {
+    const adapters = [
+      { name: "NPR", fetchArticles: async () => [] },
+      { name: "AP News", fetchArticles: async () => [] },
+    ];
+
+    expect(
+      selectBackfillAdapters(adapters, "npr").map((adapter) => adapter.name),
+    ).toEqual(["NPR"]);
+    expect(
+      selectBackfillAdapters(adapters, "AP News").map(
+        (adapter) => adapter.name,
+      ),
+    ).toEqual(["AP News"]);
   });
 
   it("collects articles from each adapter for the requested date", async () => {

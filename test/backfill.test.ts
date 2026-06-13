@@ -24,6 +24,10 @@ const apSitemap = `<?xml version="1.0" encoding="UTF-8"?>
       <loc>https://apnews.com/article/an-older-ap-story-with-enough-words-abc123</loc>
       <lastmod>2024-05-01T10:15:00-04:00</lastmod>
     </url>
+    <url>
+      <loc>https://apnews.com/article/a-different-day-story-with-enough-words-def456</loc>
+      <lastmod>2024-05-02T10:15:00-04:00</lastmod>
+    </url>
   </urlset>`;
 
 describe("backfill adapters", () => {
@@ -72,6 +76,23 @@ describe("backfill adapters", () => {
         created_at: expect.any(String),
         published_at: "2024-05-01T14:15:00.000Z",
       },
+    ]);
+  });
+
+  it("filters AP sitemap articles to the requested date", async () => {
+    const articles = await apNewsBackfillAdapter.fetchArticles({
+      date: "2024-05-02",
+      fetchText: async (url) => {
+        if (url === "https://apnews.com/sitemap.xml") {
+          return apSitemapIndex;
+        }
+
+        return apSitemap;
+      },
+    });
+
+    expect(articles.map((article) => article.link)).toEqual([
+      "https://apnews.com/article/a-different-day-story-with-enough-words-def456",
     ]);
   });
 
