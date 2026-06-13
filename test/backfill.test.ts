@@ -159,6 +159,31 @@ describe("backfill adapters", () => {
     expect(articles).toEqual([]);
   });
 
+  it("sleeps between AP article detail requests", async () => {
+    const sleeps: number[] = [];
+
+    await apNewsBackfillAdapter.fetchArticles({
+      date: "2024-05-01",
+      sleepMs: 25,
+      sleep: async (milliseconds) => {
+        sleeps.push(milliseconds);
+      },
+      fetchText: async (url) => {
+        if (url === "https://apnews.com/sitemap.xml") {
+          return apSitemapIndex;
+        }
+
+        if (url === "https://apnews.com/ap-sitemap-202405.xml") {
+          return apSitemap;
+        }
+
+        return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
+      },
+    });
+
+    expect(sleeps).toEqual([25]);
+  });
+
   it("filters AP sitemap articles to the requested date", async () => {
     const articles = await apNewsBackfillAdapter.fetchArticles({
       date: "2024-05-02",

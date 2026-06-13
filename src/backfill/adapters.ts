@@ -7,6 +7,8 @@ export type FetchText = (url: string) => Promise<string>;
 export interface BackfillRequest {
   date: string;
   fetchText?: FetchText;
+  sleepMs?: number;
+  sleep?: (milliseconds: number) => Promise<void>;
 }
 
 export interface BackfillAdapter {
@@ -15,6 +17,9 @@ export interface BackfillAdapter {
 }
 
 const FETCH_TIMEOUT_MS = 15000;
+
+const defaultSleep = (milliseconds: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 
 const defaultFetchText: FetchText = async (url) => {
   const response = await fetch(url, {
@@ -61,12 +66,18 @@ const nprArchiveUrl = (date: string) => {
 
 export const nprBackfillAdapter: BackfillAdapter = {
   name: "NPR",
-  fetchArticles: async ({ date, fetchText = defaultFetchText }) => {
+  fetchArticles: async ({
+    date,
+    fetchText = defaultFetchText,
+    sleepMs = 0,
+    sleep = defaultSleep,
+  }) => {
     const html = await fetchText(nprArchiveUrl(date));
     const $ = load(html);
     const articles: Article[] = [];
+    const archiveArticles = $("article").toArray();
 
-    for (const element of $("article").toArray()) {
+    for (const [index, element] of archiveArticles.entries()) {
       const linkElement = $(element).find("h2.title a[href*='/20']").first();
       const title = linkElement.text().trim();
       const href = linkElement.attr("href");
@@ -93,6 +104,10 @@ export const nprBackfillAdapter: BackfillAdapter = {
 
       if (article) {
         articles.push(article);
+      }
+
+      if (sleepMs > 0 && index < archiveArticles.length - 1) {
+        await sleep(sleepMs);
       }
     }
 
@@ -129,11 +144,14 @@ const parseApSitemap = async (
   xml: string,
   date: string,
   fetchText: FetchText,
+  sleepMs: number,
+  sleep: (milliseconds: number) => Promise<void>,
 ): Promise<Article[]> => {
   const $ = load(xml, { xmlMode: true });
   const articles: Article[] = [];
+  const sitemapArticles = $("url").toArray();
 
-  for (const element of $("url").toArray()) {
+  for (const [index, element] of sitemapArticles.entries()) {
     const loc = $(element).find("loc").first().text().trim();
     const sitemapTitle = $(element)
       .find("news\\:title, title")
@@ -166,6 +184,10 @@ const parseApSitemap = async (
     if (article) {
       articles.push(article);
     }
+
+    if (sleepMs > 0 && index < sitemapArticles.length - 1) {
+      await sleep(sleepMs);
+    }
   }
 
   return articles;
@@ -173,14 +195,25 @@ const parseApSitemap = async (
 
 export const apNewsBackfillAdapter: BackfillAdapter = {
   name: "AP News",
-  fetchArticles: async ({ date, fetchText = defaultFetchText }) => {
+  fetchArticles: async ({
+    date,
+    fetchText = defaultFetchText,
+    sleepMs = 0,
+    sleep = defaultSleep,
+  }) => {
     const indexXml = await fetchText("https://apnews.com/sitemap.xml");
     const sitemapUrls = parseApSitemapIndex(indexXml, date);
     const articles: Article[] = [];
 
     for (const sitemapUrl of sitemapUrls) {
       articles.push(
-        ...(await parseApSitemap(await fetchText(sitemapUrl), date, fetchText)),
+        ...(await parseApSitemap(
+          await fetchText(sitemapUrl),
+          date,
+          fetchText,
+          sleepMs,
+          sleep,
+        )),
       );
     }
 
