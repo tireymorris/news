@@ -3,6 +3,7 @@ import {
   backfillDates,
   fetchBackfillArticles,
   selectBackfillAdapters,
+  storeBackfillRange,
 } from "../src/backfill/backfill";
 
 const olderArticle = {
@@ -36,6 +37,34 @@ describe("backfill service", () => {
         (adapter) => adapter.name,
       ),
     ).toEqual(["AP News"]);
+  });
+
+  it("sleeps between dates when a delay is configured", async () => {
+    const slept: number[] = [];
+    const fetchedDates: string[] = [];
+
+    await storeBackfillRange(
+      "2024-05-01",
+      "2024-05-03",
+      [
+        {
+          name: "Example",
+          fetchArticles: async ({ date }) => {
+            fetchedDates.push(date);
+            return [];
+          },
+        },
+      ],
+      {
+        sleepMs: 25,
+        sleep: async (milliseconds) => {
+          slept.push(milliseconds);
+        },
+      },
+    );
+
+    expect(fetchedDates).toEqual(["2024-05-01", "2024-05-02", "2024-05-03"]);
+    expect(slept).toEqual([25, 25]);
   });
 
   it("collects articles from each adapter for the requested date", async () => {
