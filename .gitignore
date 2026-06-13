@@ -47,3 +47,5 @@ worker
 
 db.sqlite
 *.db
+*.db.backup.*
+*.pid

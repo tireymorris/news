@@ -74,7 +74,10 @@ describe("backfill adapters", () => {
           return apSitemap;
         }
 
-        if (url === "https://apnews.com/article/an-older-ap-story-with-enough-words-abc123") {
+        if (
+          url ===
+          "https://apnews.com/article/an-older-ap-story-with-enough-words-abc123"
+        ) {
           return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
         }
 
@@ -106,7 +109,10 @@ describe("backfill adapters", () => {
           return apSitemap;
         }
 
-        if (url === "https://apnews.com/article/a-different-day-story-with-enough-words-def456") {
+        if (
+          url ===
+          "https://apnews.com/article/a-different-day-story-with-enough-words-def456"
+        ) {
           return `<meta property="article:published_time" content="2024-05-02T09:00:00-04:00">`;
         }
 
@@ -117,6 +123,40 @@ describe("backfill adapters", () => {
     expect(articles.map((article) => article.link)).toEqual([
       "https://apnews.com/article/a-different-day-story-with-enough-words-def456",
     ]);
+  });
+
+  it("skips AP article detail pages that fail during backfill", async () => {
+    const articles = await apNewsBackfillAdapter.fetchArticles({
+      date: "2024-05-01",
+      fetchText: async (url) => {
+        if (url === "https://apnews.com/sitemap.xml") {
+          return apSitemapIndex;
+        }
+
+        if (url === "https://apnews.com/ap-sitemap-202405.xml") {
+          return apSitemap;
+        }
+
+        throw new Error("timeout");
+      },
+    });
+
+    expect(articles).toEqual([]);
+  });
+
+  it("skips NPR article detail pages that fail during backfill", async () => {
+    const articles = await nprBackfillAdapter.fetchArticles({
+      date: "2024-05-01",
+      fetchText: async (url) => {
+        if (url === "https://www.npr.org/sections/news/archive?date=5-1-2024") {
+          return nprArchiveHtml;
+        }
+
+        throw new Error("timeout");
+      },
+    });
+
+    expect(articles).toEqual([]);
   });
 
   it("filters AP sitemap articles to the requested date", async () => {
@@ -131,7 +171,10 @@ describe("backfill adapters", () => {
           return apSitemap;
         }
 
-        if (url === "https://apnews.com/article/a-different-day-story-with-enough-words-def456") {
+        if (
+          url ===
+          "https://apnews.com/article/a-different-day-story-with-enough-words-def456"
+        ) {
           return `<meta property="article:published_time" content="2024-05-02T09:00:00-04:00">`;
         }
 

@@ -10,8 +10,19 @@ const sleepMs = Number(
     ?.replace("--sleep-ms=", "") || "500",
 );
 
-const repaired = await repairStoredPublishedAt({ source, sleepMs });
 const sourceDescription = source ? ` for ${source}` : "";
+const repaired = await repairStoredPublishedAt({
+  source,
+  sleepMs,
+  onProgress: ({ processed, repaired, total }) => {
+    if (processed === 1 || processed % 50 === 0 || processed === total) {
+      const percent = ((processed / total) * 100).toFixed(1);
+      console.log(
+        `published_at repair${sourceDescription}: ${processed}/${total} processed (${percent}%), ${repaired} repaired`,
+      );
+    }
+  },
+});
 console.log(
   `Repaired published_at for ${repaired} articles${sourceDescription}.`,
 );

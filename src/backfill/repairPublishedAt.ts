@@ -4,11 +4,18 @@ import { extractPublishedAtFromHtml } from "util/publishedDate";
 
 export type FetchText = (url: string) => Promise<string>;
 
+export interface RepairProgress {
+  processed: number;
+  repaired: number;
+  total: number;
+}
+
 export interface RepairPublishedAtOptions {
   fetchText: FetchText;
   updatePublishedAt: (id: string, publishedAt: string) => Promise<void> | void;
   sleepMs?: number;
   sleep?: (milliseconds: number) => Promise<void>;
+  onProgress?: (progress: RepairProgress) => void;
 }
 
 const defaultSleep = (milliseconds: number) =>
@@ -38,6 +45,12 @@ export const repairPublishedAtForArticles = async (
       );
     }
 
+    options.onProgress?.({
+      processed: index + 1,
+      repaired,
+      total: articles.length,
+    });
+
     if (sleepMs > 0 && index < articles.length - 1) {
       await sleep(sleepMs);
     }
@@ -58,17 +71,28 @@ const defaultFetchText: FetchText = async (url) => {
   return response.text();
 };
 
+export const getRepairableArticles = (source?: string): Article[] => {
+  const sourceClause = source ? "AND source = ?" : "";
+  return db
+    .prepare(
+      `SELECT * FROM articles
+       WHERE (published_at IS NULL OR published_at = created_at)
+       ${sourceClause}
+       ORDER BY created_at ASC`,
+    )
+    .all(...(source ? [source] : [])) as Article[];
+};
+
 export const repairStoredPublishedAt = async ({
   source,
   sleepMs = 500,
+  onProgress,
 }: {
   source?: string;
   sleepMs?: number;
+  onProgress?: (progress: RepairProgress) => void;
 } = {}): Promise<number> => {
-  const sourceClause = source ? "WHERE source = ?" : "";
-  const articles = db
-    .prepare(`SELECT * FROM articles ${sourceClause} ORDER BY created_at ASC`)
-    .all(...(source ? [source] : [])) as Article[];
+  const articles = getRepairableArticles(source);
   const update = db.prepare(
     "UPDATE articles SET published_at = ? WHERE id = ?",
   );
@@ -77,5 +101,6 @@ export const repairStoredPublishedAt = async ({
     fetchText: defaultFetchText,
     updatePublishedAt: (id, publishedAt) => update.run(publishedAt, id),
     sleepMs,
+    onProgress,
   });
 };

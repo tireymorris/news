@@ -23,6 +23,7 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const db = new Database(dbPath);
+db.run("PRAGMA busy_timeout = 5000");
 
 db.run(`
   CREATE TABLE IF NOT EXISTS articles (

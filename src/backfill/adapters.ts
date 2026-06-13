@@ -77,7 +77,14 @@ export const nprBackfillAdapter: BackfillAdapter = {
       }
 
       const link = new URL(href, "https://www.npr.org").href;
-      const publishedAt = extractPublishedAtFromHtml(await fetchText(link));
+      let publishedAt: string | null = null;
+      try {
+        publishedAt = extractPublishedAtFromHtml(await fetchText(link));
+      } catch (error) {
+        console.error(`Skipping NPR backfill detail page ${link}: ${error}`);
+        continue;
+      }
+
       if (!publishedAt?.startsWith(date)) {
         continue;
       }
@@ -138,7 +145,14 @@ const parseApSitemap = async (
       continue;
     }
 
-    const publishedAt = extractPublishedAtFromHtml(await fetchText(loc));
+    let publishedAt: string | null = null;
+    try {
+      publishedAt = extractPublishedAtFromHtml(await fetchText(loc));
+    } catch (error) {
+      console.error(`Skipping AP backfill detail page ${loc}: ${error}`);
+      continue;
+    }
+
     if (!publishedAt?.startsWith(date)) {
       continue;
     }

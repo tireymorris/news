@@ -56,9 +56,17 @@ export const storeBackfillArticles = async (
   return articles.filter(insertArticle);
 };
 
+export interface BackfillProgress {
+  date: string;
+  processedDates: number;
+  inserted: number;
+  totalDates: number;
+}
+
 export interface BackfillRangeOptions {
   sleepMs?: number;
   sleep?: (milliseconds: number) => Promise<void>;
+  onProgress?: (progress: BackfillProgress) => void;
 }
 
 const defaultSleep = (milliseconds: number) =>
@@ -76,7 +84,14 @@ export const storeBackfillRange = async (
   const sleepMs = options.sleepMs || 0;
 
   for (const [index, date] of dates.entries()) {
-    insertedArticles.push(...(await storeBackfillArticles(date, adapters)));
+    const insertedForDate = await storeBackfillArticles(date, adapters);
+    insertedArticles.push(...insertedForDate);
+    options.onProgress?.({
+      date,
+      processedDates: index + 1,
+      inserted: insertedForDate.length,
+      totalDates: dates.length,
+    });
 
     if (sleepMs > 0 && index < dates.length - 1) {
       await sleep(sleepMs);

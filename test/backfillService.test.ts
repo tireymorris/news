@@ -67,6 +67,34 @@ describe("backfill service", () => {
     expect(slept).toEqual([25, 25]);
   });
 
+  it("reports backfill progress after each date", async () => {
+    const progress: {
+      date: string;
+      processedDates: number;
+      inserted: number;
+      totalDates: number;
+    }[] = [];
+
+    await storeBackfillRange(
+      "2024-05-01",
+      "2024-05-02",
+      [
+        {
+          name: "Example",
+          fetchArticles: async () => [],
+        },
+      ],
+      {
+        onProgress: (event) => progress.push(event),
+      },
+    );
+
+    expect(progress).toEqual([
+      { date: "2024-05-01", processedDates: 1, inserted: 0, totalDates: 2 },
+      { date: "2024-05-02", processedDates: 2, inserted: 0, totalDates: 2 },
+    ]);
+  });
+
   it("collects articles from each adapter for the requested date", async () => {
     const articles = await fetchBackfillArticles("2024-05-01", [
       {

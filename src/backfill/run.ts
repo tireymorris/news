@@ -34,6 +34,18 @@ const insertedArticles = await storeBackfillRange(
   adapters,
   {
     sleepMs,
+    onProgress: ({ date, processedDates, inserted, totalDates }) => {
+      if (
+        processedDates === 1 ||
+        processedDates % 10 === 0 ||
+        processedDates === totalDates
+      ) {
+        const percent = ((processedDates / totalDates) * 100).toFixed(1);
+        console.log(
+          `backfill${sourceArg ? ` for ${sourceArg}` : ""}: ${date} (${processedDates}/${totalDates}, ${percent}%), inserted ${inserted}`,
+        );
+      }
+    },
   },
 );
 const sourceDescription = sourceArg ? ` for ${sourceArg}` : "";
