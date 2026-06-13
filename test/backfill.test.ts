@@ -39,10 +39,14 @@ describe("backfill adapters", () => {
     const articles = await nprBackfillAdapter.fetchArticles({
       date: "2024-05-01",
       fetchText: async (url) => {
+        if (url === "https://www.npr.org/sections/news/archive?date=5-1-2024") {
+          return nprArchiveHtml;
+        }
+
         expect(url).toBe(
-          "https://www.npr.org/sections/news/archive?date=5-1-2024",
+          "https://www.npr.org/2024/05/01/123456789/older-story-title",
         );
-        return nprArchiveHtml;
+        return `<script type="application/ld+json">{"datePublished":"2024-05-01T15:45:00-04:00"}</script>`;
       },
     });
 
@@ -53,7 +57,7 @@ describe("backfill adapters", () => {
         link: "https://www.npr.org/2024/05/01/123456789/older-story-title",
         source: "NPR",
         created_at: expect.any(String),
-        published_at: "2024-05-01T18:30:00.000Z",
+        published_at: "2024-05-01T19:45:00.000Z",
       },
     ]);
   });
@@ -66,8 +70,14 @@ describe("backfill adapters", () => {
           return apSitemapIndex;
         }
 
-        expect(url).toBe("https://apnews.com/ap-sitemap-202405.xml");
-        return apSitemap;
+        if (url === "https://apnews.com/ap-sitemap-202405.xml") {
+          return apSitemap;
+        }
+
+        expect(url).toBe(
+          "https://apnews.com/article/an-older-ap-story-with-enough-words-abc123",
+        );
+        return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
       },
     });
 
@@ -78,7 +88,7 @@ describe("backfill adapters", () => {
         link: "https://apnews.com/article/an-older-ap-story-with-enough-words-abc123",
         source: "AP News",
         created_at: expect.any(String),
-        published_at: "2024-05-01T14:15:00.000Z",
+        published_at: "2024-05-01T13:00:00.000Z",
       },
     ]);
   });
@@ -91,7 +101,11 @@ describe("backfill adapters", () => {
           return apSitemapIndex;
         }
 
-        return apSitemap;
+        if (url === "https://apnews.com/ap-sitemap-202405.xml") {
+          return apSitemap;
+        }
+
+        return `<meta property="article:published_time" content="2024-05-02T09:00:00-04:00">`;
       },
     });
 

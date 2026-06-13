@@ -1,5 +1,6 @@
 import { load } from "cheerio";
 import { Article, isValidArticle } from "models/article";
+import { extractPublishedAtFromHtml } from "util/publishedDate";
 
 export type FetchText = (url: string) => Promise<string>;
 
@@ -65,27 +66,28 @@ export const nprBackfillAdapter: BackfillAdapter = {
     const $ = load(html);
     const articles: Article[] = [];
 
-    $("article").each((_, element) => {
+    for (const element of $("article").toArray()) {
       const linkElement = $(element).find("h2.title a[href*='/20']").first();
       const title = linkElement.text().trim();
       const href = linkElement.attr("href");
-      const publishedAt = $(element).find("time[datetime]").attr("datetime");
+      const archiveDate = $(element).find("time[datetime]").attr("datetime");
 
-      if (!title || !href || !publishedAt.startsWith(date)) {
-        return;
+      if (!title || !href || !archiveDate?.startsWith(date)) {
+        continue;
       }
 
-      const article = articleFrom(
-        title,
-        new URL(href, "https://www.npr.org").href,
-        "NPR",
-        publishedAt,
-      );
+      const link = new URL(href, "https://www.npr.org").href;
+      const publishedAt = extractPublishedAtFromHtml(await fetchText(link));
+      if (!publishedAt?.startsWith(date)) {
+        continue;
+      }
+
+      const article = articleFrom(title, link, "NPR", publishedAt);
 
       if (article) {
         articles.push(article);
       }
-    });
+    }
 
     return articles;
   },
@@ -116,21 +118,30 @@ const titleFromApUrl = (url: string): string => {
     .join(" ");
 };
 
-const parseApSitemap = (xml: string, date: string): Article[] => {
+const parseApSitemap = async (
+  xml: string,
+  date: string,
+  fetchText: FetchText,
+): Promise<Article[]> => {
   const $ = load(xml, { xmlMode: true });
   const articles: Article[] = [];
 
-  $("url").each((_, element) => {
+  for (const element of $("url").toArray()) {
     const loc = $(element).find("loc").first().text().trim();
-    const publishedAt = $(element).find("lastmod").first().text().trim();
+    const sitemapDate = $(element).find("lastmod").first().text().trim();
     const sitemapTitle = $(element)
       .find("news\\:title, title")
       .first()
       .text()
       .trim();
 
-    if (!loc.includes("/article/") || !publishedAt.startsWith(date)) {
-      return;
+    if (!loc.includes("/article/") || !sitemapDate.startsWith(date)) {
+      continue;
+    }
+
+    const publishedAt = extractPublishedAtFromHtml(await fetchText(loc));
+    if (!publishedAt?.startsWith(date)) {
+      continue;
     }
 
     const article = articleFrom(
@@ -142,7 +153,7 @@ const parseApSitemap = (xml: string, date: string): Article[] => {
     if (article) {
       articles.push(article);
     }
-  });
+  }
 
   return articles;
 };
@@ -155,7 +166,9 @@ export const apNewsBackfillAdapter: BackfillAdapter = {
     const articles: Article[] = [];
 
     for (const sitemapUrl of sitemapUrls) {
-      articles.push(...parseApSitemap(await fetchText(sitemapUrl), date));
+      articles.push(
+        ...(await parseApSitemap(await fetchText(sitemapUrl), date, fetchText)),
+      );
     }
 
     return articles;

@@ -1,6 +1,10 @@
 import { load, type CheerioAPI, type Element } from "cheerio";
 import { Article, isValidArticle } from "models/article";
 import { log } from "util/log";
+import {
+  extractPublishedAtFromHtml,
+  parsePublishedAt,
+} from "util/publishedDate";
 import { NewsSource } from "../models/newsSources";
 
 export type FetchText = (url: string) => Promise<string>;
@@ -12,26 +16,6 @@ export interface FetchArticlesOptions {
 const defaultFetchText: FetchText = async (url) => {
   const response = await fetch(url);
   return response.text();
-};
-
-const parsePublishedAt = (value: string): string | null => {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const timestamp = Number(trimmed);
-  const date = new Date(
-    Number.isFinite(timestamp) && trimmed.length >= 10
-      ? timestamp
-      : trimmed.replace("•", ""),
-  );
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date.toISOString();
 };
 
 const listingPublishedAt = (
@@ -60,17 +44,7 @@ const detailPublishedAt = async (
     return null;
   }
 
-  const detailHtml = await fetchText(link);
-  const $ = load(detailHtml);
-
-  for (const element of $(source.detailPublishedAtSelector).toArray()) {
-    const publishedAt = parsePublishedAt($(element).text());
-    if (publishedAt) {
-      return publishedAt;
-    }
-  }
-
-  return null;
+  return extractPublishedAtFromHtml(await fetchText(link));
 };
 
 const buildArticle = async (
