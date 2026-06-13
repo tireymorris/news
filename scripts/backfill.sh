@@ -4,7 +4,7 @@ set -euo pipefail
 restart_delay="${BACKFILL_RESTART_DELAY:-30}"
 
 while true; do
-  if bun run src/backfill/monthlyRun.ts; then
+  if bun run src/backfill/dailyRun.ts; then
     break
   fi
 

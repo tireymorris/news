@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   backfillDates,
+  datesBackward,
   fetchBackfillArticles,
   selectBackfillAdapters,
   storeBackfillRange,
@@ -15,6 +16,14 @@ const olderArticle = {
 };
 
 describe("backfill service", () => {
+  it("lists dates backward through a range", () => {
+    expect(datesBackward("2024-05-03", "2024-05-01")).toEqual([
+      "2024-05-03",
+      "2024-05-02",
+      "2024-05-01",
+    ]);
+  });
+
   it("lists each date in a backfill range", () => {
     expect(backfillDates("2024-05-01", "2024-05-03")).toEqual([
       "2024-05-01",

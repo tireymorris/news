@@ -29,6 +29,22 @@ export const backfillDates = (
   return dates;
 };
 
+export const datesBackward = (
+  endDate: string,
+  floorDate: string,
+): string[] => {
+  const dates: string[] = [];
+  const current = new Date(`${endDate}T00:00:00.000Z`);
+  const floor = new Date(`${floorDate}T00:00:00.000Z`);
+
+  while (current >= floor) {
+    dates.push(isoDate(current));
+    current.setUTCDate(current.getUTCDate() - 1);
+  }
+
+  return dates;
+};
+
 export const selectBackfillAdapters = (
   adapters: BackfillAdapter[],
   source?: string,
@@ -196,4 +212,27 @@ export const storeBackfillMonth = async (
   }
 
   return { month, nprInserted, apInserted, requireAp };
+};
+
+export const storeBackfillDay = async (
+  date: string,
+  sources: string[],
+  options: BackfillRangeOptions = {},
+): Promise<{ nprInserted: number; apInserted: number }> => {
+  let nprInserted = 0;
+  let apInserted = 0;
+
+  if (sources.includes("NPR")) {
+    nprInserted = (
+      await storeBackfillArticles(date, [nprBackfillAdapter], options)
+    ).length;
+  }
+
+  if (sources.includes("AP News")) {
+    apInserted = (
+      await storeBackfillArticles(date, [apNewsBackfillAdapter], options)
+    ).length;
+  }
+
+  return { nprInserted, apInserted };
 };

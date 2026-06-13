@@ -1,4 +1,5 @@
 import db from "@/db";
+import { sparseDaysInMonth } from "./validateDay";
 
 export interface MonthCounts {
   npr: number;
@@ -10,15 +11,6 @@ export interface MonthValidation {
   issues: string[];
   counts: MonthCounts;
 }
-
-export const DEFAULT_MIN_MONTHLY_ARTICLES = 30;
-
-export const minMonthlyArticles = (): number => {
-  const configured = Number(process.env.BACKFILL_MIN_MONTH_ARTICLES);
-  return Number.isFinite(configured) && configured > 0
-    ? configured
-    : DEFAULT_MIN_MONTHLY_ARTICLES;
-};
 
 export const monthArticleCounts = (month: string): MonthCounts => {
   const rows = db
@@ -50,7 +42,6 @@ export const validateMonth = (
 ): MonthValidation => {
   const issues: string[] = [];
   const counts = monthArticleCounts(month);
-  const minArticles = options.minArticles ?? minMonthlyArticles();
 
   const duplicateLinks = db
     .prepare(
@@ -84,12 +75,28 @@ export const validateMonth = (
     issues.push(`${nullPublishedAt.count} articles with null published_at`);
   }
 
-  if (counts.npr < minArticles) {
-    issues.push(`NPR has ${counts.npr} articles (minimum ${minArticles})`);
+  const sparseDays = sparseDaysInMonth(month, options);
+  const sparseNprDays = sparseDays.filter((day) => day.source === "NPR");
+  const sparseApDays = sparseDays.filter((day) => day.source === "AP News");
+
+  if (sparseNprDays.length > 0) {
+    const examples = sparseNprDays
+      .slice(0, 3)
+      .map((day) => `${day.date}(${day.count})`)
+      .join(", ");
+    issues.push(
+      `NPR sparse on ${sparseNprDays.length} days (e.g. ${examples})`,
+    );
   }
 
-  if (options.requireAp && counts.ap < minArticles) {
-    issues.push(`AP News has ${counts.ap} articles (minimum ${minArticles})`);
+  if (sparseApDays.length > 0) {
+    const examples = sparseApDays
+      .slice(0, 3)
+      .map((day) => `${day.date}(${day.count})`)
+      .join(", ");
+    issues.push(
+      `AP News sparse on ${sparseApDays.length} days (e.g. ${examples})`,
+    );
   }
 
   return {
