@@ -11,6 +11,15 @@ export interface MonthValidation {
   counts: MonthCounts;
 }
 
+export const DEFAULT_MIN_MONTHLY_ARTICLES = 30;
+
+export const minMonthlyArticles = (): number => {
+  const configured = Number(process.env.BACKFILL_MIN_MONTH_ARTICLES);
+  return Number.isFinite(configured) && configured > 0
+    ? configured
+    : DEFAULT_MIN_MONTHLY_ARTICLES;
+};
+
 export const monthArticleCounts = (month: string): MonthCounts => {
   const rows = db
     .prepare(
@@ -37,10 +46,11 @@ export const monthArticleCounts = (month: string): MonthCounts => {
 
 export const validateMonth = (
   month: string,
-  options: { requireAp?: boolean } = {},
+  options: { requireAp?: boolean; minArticles?: number } = {},
 ): MonthValidation => {
   const issues: string[] = [];
   const counts = monthArticleCounts(month);
+  const minArticles = options.minArticles ?? minMonthlyArticles();
 
   const duplicateLinks = db
     .prepare(
@@ -74,12 +84,12 @@ export const validateMonth = (
     issues.push(`${nullPublishedAt.count} articles with null published_at`);
   }
 
-  if (counts.npr === 0) {
-    issues.push("NPR has zero articles");
+  if (counts.npr < minArticles) {
+    issues.push(`NPR has ${counts.npr} articles (minimum ${minArticles})`);
   }
 
-  if (options.requireAp && counts.ap === 0) {
-    issues.push("AP News has zero articles");
+  if (options.requireAp && counts.ap < minArticles) {
+    issues.push(`AP News has ${counts.ap} articles (minimum ${minArticles})`);
   }
 
   return {

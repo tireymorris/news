@@ -72,7 +72,11 @@ describe("backfill service", () => {
       date: string;
       processedDates: number;
       inserted: number;
+      discovered: number;
       totalDates: number;
+      monthInserted: number;
+      skipped: boolean;
+      error?: string;
     }[] = [];
 
     await storeBackfillRange(
@@ -90,8 +94,24 @@ describe("backfill service", () => {
     );
 
     expect(progress).toEqual([
-      { date: "2024-05-01", processedDates: 1, inserted: 0, totalDates: 2 },
-      { date: "2024-05-02", processedDates: 2, inserted: 0, totalDates: 2 },
+      {
+        date: "2024-05-01",
+        processedDates: 1,
+        inserted: 0,
+        discovered: 0,
+        totalDates: 2,
+        monthInserted: 0,
+        skipped: false,
+      },
+      {
+        date: "2024-05-02",
+        processedDates: 2,
+        inserted: 0,
+        discovered: 0,
+        totalDates: 2,
+        monthInserted: 0,
+        skipped: false,
+      },
     ]);
   });
 
@@ -100,7 +120,11 @@ describe("backfill service", () => {
       date: string;
       processedDates: number;
       inserted: number;
+      discovered: number;
       totalDates: number;
+      monthInserted: number;
+      skipped: boolean;
+      error?: string;
     }[] = [];
 
     await storeBackfillRange(
@@ -122,9 +146,26 @@ describe("backfill service", () => {
       },
     );
 
-    expect(progress.map((event) => event.date)).toEqual([
-      "2024-05-01",
-      "2024-05-02",
+    expect(progress).toEqual([
+      {
+        date: "2024-05-01",
+        processedDates: 1,
+        inserted: 0,
+        discovered: 0,
+        totalDates: 2,
+        monthInserted: 0,
+        skipped: true,
+        error: "Example: timeout",
+      },
+      {
+        date: "2024-05-02",
+        processedDates: 2,
+        inserted: 0,
+        discovered: 0,
+        totalDates: 2,
+        monthInserted: 0,
+        skipped: false,
+      },
     ]);
   });
 

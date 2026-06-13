@@ -5,6 +5,7 @@ db="${LOCAL_DB:-articles.db}"
 sources="${SOURCES:-NPR,AP News}"
 month="${MONTH:-}"
 strict="${STRICT:-0}"
+min_articles="${MIN_ARTICLES:-30}"
 issues=0
 
 record_issue() {
@@ -140,12 +141,16 @@ if [[ "$strict" == "1" ]]; then
   duplicate_links="$(sqlite3 "$db" "SELECT COUNT(*) FROM (SELECT link FROM articles WHERE source IN ('NPR', 'AP News') $month_clause GROUP BY link HAVING COUNT(*) > 1);")"
   duplicate_titles="$(sqlite3 "$db" "SELECT COUNT(*) FROM (SELECT title FROM articles WHERE source IN ('NPR', 'AP News') $month_clause GROUP BY title HAVING COUNT(*) > 1);")"
   npr_count="$(sqlite3 "$db" "SELECT COUNT(*) FROM articles WHERE source = 'NPR' $month_clause;")"
+  ap_count="$(sqlite3 "$db" "SELECT COUNT(*) FROM articles WHERE source = 'AP News' $month_clause;")"
 
   [[ "$null_published_at" != "0" ]] && record_issue "strict: $null_published_at null published_at values"
   [[ "$duplicate_links" != "0" ]] && record_issue "strict: $duplicate_links duplicate link groups"
   [[ "$duplicate_titles" != "0" ]] && record_issue "strict: $duplicate_titles duplicate title groups"
-  if [[ -n "$month" && "$npr_count" == "0" ]]; then
-    record_issue "strict: NPR has zero articles for $month"
+  if [[ -n "$month" && "$npr_count" -lt "$min_articles" ]]; then
+    record_issue "strict: NPR has $npr_count articles for $month (minimum $min_articles)"
+  fi
+  if [[ -n "$month" && "$ap_count" -gt 0 && "$ap_count" -lt "$min_articles" ]]; then
+    record_issue "strict: AP News has $ap_count articles for $month (minimum $min_articles)"
   fi
 
   if [[ "$issues" -gt 0 ]]; then
