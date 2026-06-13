@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { datesBackward, storeBackfillDay } from "./backfill";
 import { dayArticleCounts, minDailyArticles, validateDay } from "./validateDay";
-import { hasApSitemapForMonth } from "./adapters";
+import { resolveApRequirement } from "./adapters";
 import {
   enqueueRetry,
   normalizeMonthlyState,
@@ -18,6 +18,17 @@ const END_DATE =
 const FLOOR_DATE = process.env.BACKFILL_FLOOR_DATE || "2010-01-01";
 const SLEEP_MS = Number(process.env.BACKFILL_SLEEP_MS || "500");
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const NETWORK_STREAK_PAUSE_THRESHOLD = 3;
+
+const isNetworkIssue = (message: string): boolean =>
+  message.includes("TimeoutError") ||
+  message.includes("Unable to connect") ||
+  message.includes("typo in the url") ||
+  message.includes("ECONNRESET") ||
+  message.includes("connection");
+
+const networkPauseMs = (streak: number): number =>
+  Math.min(5000 * 2 ** Math.max(streak - NETWORK_STREAK_PAUSE_THRESHOLD, 0), 60000);
 
 const saveState = (state: MonthlyState) => {
   writeFileSync(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`);
@@ -73,13 +84,15 @@ const tryDayOnce = async (
   date: string,
   retryAttempt?: number,
 ): Promise<DayAttemptResult> => {
-  try {
-    const requireAp = await hasApSitemapForMonth(date.slice(0, 7));
-    const precheck = validateDay(date, { requireAp });
-    if (precheck.ok) {
-      return { status: "complete" };
-    }
+  const month = date.slice(0, 7);
+  const requireAp = await resolveApRequirement(month);
+  const precheck = validateDay(date, { requireAp });
 
+  if (precheck.ok) {
+    return { status: "complete" };
+  }
+
+  try {
     const attemptLabel =
       retryAttempt && retryAttempt > 1 ? ` · retry #${retryAttempt}` : "";
     logDay(
@@ -87,7 +100,11 @@ const tryDayOnce = async (
       `starting${attemptLabel} · need ≥${minDailyArticles()} per source · gaps: ${precheck.issues.join("; ")}`,
     );
 
-    const result = await storeBackfillDay(date, precheck.sparseSources, {
+    const ingestSources = precheck.sparseSources.filter(
+      (source) => source !== "AP News" || requireAp,
+    );
+
+    const result = await storeBackfillDay(date, ingestSources, {
       sleepMs: SLEEP_MS,
     });
 
@@ -139,6 +156,8 @@ const run = async () => {
     `Progress: ${completed.size}/${dates.length} days complete, ${Object.keys(state.retry).length} queued for retry`,
   );
 
+  let consecutiveNetworkFailures = 0;
+
   while (completed.size < dates.length) {
     const date = selectNextMonth(dates, completed, state.retry);
     if (!date) {
@@ -148,6 +167,7 @@ const run = async () => {
         `Waiting ${waitMs}ms for retry backoff (${queued.length} queued, ${completed.size}/${dates.length} complete)`,
       );
       await sleep(Math.max(waitMs, 1000));
+      consecutiveNetworkFailures = 0;
       continue;
     }
 
@@ -157,6 +177,7 @@ const run = async () => {
       state.completed = [...completed].sort().reverse();
       delete state.retry[date];
       saveState(state);
+      consecutiveNetworkFailures = 0;
 
       if (completed.size % 25 === 0 || completed.size === dates.length) {
         console.log(
@@ -169,6 +190,19 @@ const run = async () => {
     const entry = enqueueRetry(state.retry, date, result.issues);
     saveState(state);
     logDay(date, "queued for retry, continuing backward", entry);
+
+    if (result.issues.some(isNetworkIssue)) {
+      consecutiveNetworkFailures += 1;
+      if (consecutiveNetworkFailures >= NETWORK_STREAK_PAUSE_THRESHOLD) {
+        const pauseMs = networkPauseMs(consecutiveNetworkFailures);
+        console.log(
+          `Network errors on ${consecutiveNetworkFailures} consecutive days, pausing ${pauseMs}ms before continuing`,
+        );
+        await sleep(pauseMs);
+      }
+    } else {
+      consecutiveNetworkFailures = 0;
+    }
   }
 
   console.log(`Backfill complete through ${FLOOR_DATE}.`);

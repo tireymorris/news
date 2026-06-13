@@ -1,9 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
   apNewsBackfillAdapter,
+  clearApRequirementCache,
   fetchApArticlesForMonth,
   nprBackfillAdapter,
   parseApSitemapIndex,
+  resolveApRequirement,
 } from "../src/backfill/adapters";
 
 const nprArchiveHtml = `
@@ -337,5 +339,34 @@ describe("backfill adapters", () => {
       totalUrls: 2,
       matchedArticles: 2,
     });
+  });
+
+  it("caches AP sitemap lookups per month", async () => {
+    clearApRequirementCache();
+    let fetches = 0;
+
+    const fetchText = async (url: string) => {
+      if (url === "https://apnews.com/sitemap.xml") {
+        fetches += 1;
+        return apSitemapIndex;
+      }
+
+      throw new Error(`unexpected fetch ${url}`);
+    };
+
+    await resolveApRequirement("2024-05", fetchText);
+    await resolveApRequirement("2024-05", fetchText);
+
+    expect(fetches).toBe(1);
+  });
+
+  it("falls back to NPR-only when AP sitemap lookup fails", async () => {
+    clearApRequirementCache();
+
+    const requireAp = await resolveApRequirement("2024-05", async () => {
+      throw new Error("Unable to connect. Is the computer able to access the url?");
+    });
+
+    expect(requireAp).toBe(false);
   });
 });

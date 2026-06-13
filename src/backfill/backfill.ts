@@ -217,21 +217,29 @@ export const storeBackfillMonth = async (
 export const storeBackfillDay = async (
   date: string,
   sources: string[],
-  options: BackfillRangeOptions = {},
+  options: BackfillRangeOptions & { adapters?: BackfillAdapter[] } = {},
 ): Promise<{ nprInserted: number; apInserted: number }> => {
+  const catalog = options.adapters ?? backfillAdapters;
   let nprInserted = 0;
   let apInserted = 0;
 
-  if (sources.includes("NPR")) {
-    nprInserted = (
-      await storeBackfillArticles(date, [nprBackfillAdapter], options)
-    ).length;
-  }
+  for (const source of sources) {
+    const adapters = selectBackfillAdapters(catalog, source);
+    if (adapters.length === 0) {
+      continue;
+    }
 
-  if (sources.includes("AP News")) {
-    apInserted = (
-      await storeBackfillArticles(date, [apNewsBackfillAdapter], options)
+    const inserted = (
+      await storeBackfillArticles(date, adapters, options)
     ).length;
+
+    if (source === "NPR") {
+      nprInserted = inserted;
+    }
+
+    if (source === "AP News") {
+      apInserted = inserted;
+    }
   }
 
   return { nprInserted, apInserted };

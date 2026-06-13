@@ -376,6 +376,45 @@ export const hasApSitemapForMonth = async (
   return parseApSitemapIndex(indexXml, `${month}-01`).length > 0;
 };
 
+type ApMonthCacheEntry =
+  | { status: "resolved"; requireAp: boolean }
+  | { status: "error"; failedAt: number };
+
+const apMonthCache = new Map<string, ApMonthCacheEntry>();
+const AP_SITEMAP_ERROR_RETRY_MS = 300000;
+
+export const clearApRequirementCache = () => {
+  apMonthCache.clear();
+};
+
+export const resolveApRequirement = async (
+  month: string,
+  fetchText: FetchText = defaultFetchText,
+): Promise<boolean> => {
+  const cached = apMonthCache.get(month);
+  const now = Date.now();
+
+  if (cached?.status === "resolved") {
+    return cached.requireAp;
+  }
+
+  if (
+    cached?.status === "error" &&
+    now - cached.failedAt < AP_SITEMAP_ERROR_RETRY_MS
+  ) {
+    return false;
+  }
+
+  try {
+    const requireAp = await hasApSitemapForMonth(month, fetchText);
+    apMonthCache.set(month, { status: "resolved", requireAp });
+    return requireAp;
+  } catch {
+    apMonthCache.set(month, { status: "error", failedAt: now });
+    return false;
+  }
+};
+
 export const apNewsBackfillAdapter: BackfillAdapter = {
   name: "AP News",
   fetchArticles: async ({

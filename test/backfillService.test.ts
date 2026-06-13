@@ -4,6 +4,7 @@ import {
   datesBackward,
   fetchBackfillArticles,
   selectBackfillAdapters,
+  storeBackfillDay,
   storeBackfillRange,
 } from "../src/backfill/backfill";
 
@@ -190,5 +191,31 @@ describe("backfill service", () => {
     ]);
 
     expect(articles).toEqual([olderArticle]);
+  });
+
+  it("ingests each requested source for a single day", async () => {
+    const fetchedSources: string[] = [];
+
+    const result = await storeBackfillDay("2024-05-01", ["NPR", "AP News"], {
+      adapters: [
+        {
+          name: "NPR",
+          fetchArticles: async () => {
+            fetchedSources.push("NPR");
+            return [];
+          },
+        },
+        {
+          name: "AP News",
+          fetchArticles: async () => {
+            fetchedSources.push("AP News");
+            return [];
+          },
+        },
+      ],
+    });
+
+    expect(result).toEqual({ nprInserted: 0, apInserted: 0 });
+    expect(fetchedSources).toEqual(["NPR", "AP News"]);
   });
 });
