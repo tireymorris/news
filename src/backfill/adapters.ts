@@ -1,6 +1,9 @@
 import { load } from "cheerio";
 import { Article, isValidArticle } from "models/article";
-import { extractPublishedAtFromHtml } from "util/publishedDate";
+import {
+  extractPublishedAtFromHtml,
+  parsePublishedAt,
+} from "util/publishedDate";
 
 export type FetchText = (url: string) => Promise<string>;
 
@@ -23,9 +26,51 @@ export interface BackfillAdapter {
 }
 
 const FETCH_TIMEOUT_MS = 15000;
+const FETCH_RETRY_ATTEMPTS = 3;
 
 const defaultSleep = (milliseconds: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+
+const retryDelayMs = (attempt: number): number =>
+  Math.min(5000 * 2 ** Math.max(attempt - 1, 0), 30000);
+
+const isTransientFetchError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("TimeoutError") ||
+    message.includes("Unable to connect") ||
+    message.includes("typo in the url") ||
+    message.includes("ECONNRESET") ||
+    message.includes("connection")
+  );
+};
+
+const fetchTextWithRetry = async (
+  fetchText: FetchText,
+  url: string,
+  sleep: (milliseconds: number) => Promise<void> = defaultSleep,
+): Promise<string> => {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= FETCH_RETRY_ATTEMPTS; attempt++) {
+    try {
+      return await fetchText(url);
+    } catch (error) {
+      lastError = error;
+      if (attempt < FETCH_RETRY_ATTEMPTS && isTransientFetchError(error)) {
+        await sleep(retryDelayMs(attempt));
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw lastError;
+};
+
+const archiveNeedsDetailDate = (archiveDate: string): boolean =>
+  !archiveDate.includes("T");
 
 const defaultFetchText: FetchText = async (url) => {
   const response = await fetch(url, {
@@ -78,7 +123,11 @@ export const nprBackfillAdapter: BackfillAdapter = {
     sleepMs = 0,
     sleep = defaultSleep,
   }) => {
-    const html = await fetchText(nprArchiveUrl(date));
+    const html = await fetchTextWithRetry(
+      fetchText,
+      nprArchiveUrl(date),
+      sleep,
+    );
     const $ = load(html);
     const articles: Article[] = [];
     const archiveArticles = $("article").toArray();
@@ -94,16 +143,26 @@ export const nprBackfillAdapter: BackfillAdapter = {
       }
 
       const link = new URL(href, "https://www.npr.org").href;
-      let publishedAt: string | null = null;
-      try {
-        publishedAt = extractPublishedAtFromHtml(await fetchText(link));
-      } catch (error) {
-        console.error(`Skipping NPR backfill detail page ${link}: ${error}`);
-        continue;
-      }
+      let publishedAt = parsePublishedAt(archiveDate);
+      let detailFetched = false;
 
       if (!publishedAt?.startsWith(date)) {
         continue;
+      }
+
+      if (archiveNeedsDetailDate(archiveDate)) {
+        try {
+          const detailPublishedAt = extractPublishedAtFromHtml(
+            await fetchTextWithRetry(fetchText, link, sleep),
+          );
+          detailFetched = true;
+
+          if (detailPublishedAt?.startsWith(date)) {
+            publishedAt = detailPublishedAt;
+          }
+        } catch {
+          // Keep the archive listing timestamp when detail pages are unavailable.
+        }
       }
 
       const article = articleFrom(title, link, "NPR", publishedAt);
@@ -112,7 +171,7 @@ export const nprBackfillAdapter: BackfillAdapter = {
         articles.push(article);
       }
 
-      if (sleepMs > 0 && index < archiveArticles.length - 1) {
+      if (detailFetched && sleepMs > 0 && index < archiveArticles.length - 1) {
         await sleep(sleepMs);
       }
     }
@@ -194,13 +253,14 @@ const parseApSitemapArticles = async (
 
     let publishedAt: string | null = null;
     try {
-      publishedAt = extractPublishedAtFromHtml(await fetchText(loc));
-    } catch (error) {
+      publishedAt = extractPublishedAtFromHtml(
+        await fetchTextWithRetry(fetchText, loc, sleep),
+      );
+    } catch {
       if (progress) {
         progress.processedUrls += 1;
         reportApProgress(progress, onProgress);
       }
-      console.error(`Skipping AP backfill detail page ${loc}: ${error}`);
       continue;
     }
 

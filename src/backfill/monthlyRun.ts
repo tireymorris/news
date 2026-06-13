@@ -3,12 +3,12 @@ import { monthBounds, monthsBackward } from "./month";
 import { storeBackfillMonth } from "./backfill";
 import { validateMonth } from "./validateMonth";
 import { hasApSitemapForMonth } from "./adapters";
-import { sleep } from "./retry";
 import {
   enqueueRetry,
   normalizeMonthlyState,
   retryWaitMs,
   selectNextMonth,
+  sleep,
   type MonthlyState,
 } from "./monthlyScheduler";
 
@@ -18,28 +18,34 @@ const END_MONTH = process.env.BACKFILL_END_MONTH || "2026-06";
 const FLOOR_MONTH = process.env.BACKFILL_FLOOR_MONTH || "2010-01";
 const SLEEP_MS = Number(process.env.BACKFILL_SLEEP_MS || "500");
 
-const loadState = (): MonthlyState => {
-  const stateFile = existsSync(STATE_FILE)
-    ? STATE_FILE
-    : existsSync(LEGACY_STATE_FILE)
-      ? LEGACY_STATE_FILE
-      : STATE_FILE;
+const saveState = (state: MonthlyState) => {
+  writeFileSync(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`);
+};
 
-  if (!existsSync(stateFile)) {
+const loadState = (): MonthlyState => {
+  if (!existsSync(STATE_FILE) && existsSync(LEGACY_STATE_FILE)) {
+    const state = normalizeMonthlyState(
+      JSON.parse(readFileSync(LEGACY_STATE_FILE, "utf8")) as {
+        completed?: string[];
+        retry?: MonthlyState["retry"];
+        failed?: Record<string, string[]>;
+      },
+    );
+    saveState(state);
+    return state;
+  }
+
+  if (!existsSync(STATE_FILE)) {
     return { completed: [], retry: {} };
   }
 
   return normalizeMonthlyState(
-    JSON.parse(readFileSync(stateFile, "utf8")) as {
+    JSON.parse(readFileSync(STATE_FILE, "utf8")) as {
       completed?: string[];
       retry?: MonthlyState["retry"];
       failed?: Record<string, string[]>;
     },
   );
-};
-
-const saveState = (state: MonthlyState) => {
-  writeFileSync(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`);
 };
 
 const logMonth = (
@@ -127,7 +133,7 @@ const run = async () => {
   const months = monthsBackward(END_MONTH, FLOOR_MONTH);
 
   console.log(
-    `Monthly backfill: ${months.length} months from ${END_MONTH} to ${FLOOR_MONTH}`,
+    `Backfill: ${months.length} months from ${END_MONTH} to ${FLOOR_MONTH}`,
   );
   console.log(
     `Progress: ${completed.size}/${months.length} months complete, ${Object.keys(state.retry).length} queued for retry`,
@@ -163,7 +169,7 @@ const run = async () => {
     logMonth(month, "queued for retry, continuing with other months", entry);
   }
 
-  console.log(`Monthly backfill complete through ${FLOOR_MONTH}.`);
+  console.log(`Backfill complete through ${FLOOR_MONTH}.`);
 };
 
 await run();

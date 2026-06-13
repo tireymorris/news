@@ -3,6 +3,7 @@ import {
   enqueueRetry,
   isReadyForRetry,
   normalizeMonthlyState,
+  retryDelayMs,
   retryWaitMs,
   selectNextMonth,
 } from "../src/backfill/monthlyScheduler";
@@ -49,6 +50,12 @@ describe("monthlyScheduler", () => {
     expect(retryWaitMs(months, new Set(["2026-06"]), { "2025-05": entry }, now)).toBeGreaterThan(
       0,
     );
+  });
+
+  it("backs off exponentially with a cap", () => {
+    expect(retryDelayMs(1, 5000, 300000)).toBe(5000);
+    expect(retryDelayMs(3, 5000, 300000)).toBe(20000);
+    expect(retryDelayMs(10, 5000, 300000)).toBe(300000);
   });
 
   it("migrates legacy failed state into retry entries", () => {

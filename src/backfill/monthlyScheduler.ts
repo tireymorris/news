@@ -1,5 +1,3 @@
-import { retryDelayMs } from "./retry";
-
 export interface RetryEntry {
   issues: string[];
   attempts: number;
@@ -10,6 +8,15 @@ export interface MonthlyState {
   completed: string[];
   retry: Record<string, RetryEntry>;
 }
+
+export const retryDelayMs = (
+  attempt: number,
+  baseMs = 5000,
+  maxMs = 300000,
+): number => Math.min(baseMs * 2 ** Math.max(attempt - 1, 0), maxMs);
+
+export const sleep = (milliseconds: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 
 export const isReadyForRetry = (entry: RetryEntry, now = Date.now()): boolean =>
   now >= entry.lastAttemptMs + retryDelayMs(entry.attempts);

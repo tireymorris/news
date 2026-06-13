@@ -36,21 +36,24 @@ const apSitemap = `<?xml version="1.0" encoding="UTF-8"?>
   </urlset>`;
 
 describe("backfill adapters", () => {
-  it("discovers NPR archive articles for a target day", async () => {
+  it("discovers NPR archive articles from listing timestamps without detail fetches", async () => {
+    const fetchedUrls: string[] = [];
+
     const articles = await nprBackfillAdapter.fetchArticles({
       date: "2024-05-01",
       fetchText: async (url) => {
+        fetchedUrls.push(url);
         if (url === "https://www.npr.org/sections/news/archive?date=5-1-2024") {
           return nprArchiveHtml;
         }
 
-        expect(url).toBe(
-          "https://www.npr.org/2024/05/01/123456789/older-story-title",
-        );
-        return `<script type="application/ld+json">{"datePublished":"2024-05-01T15:45:00-04:00"}</script>`;
+        throw new Error(`unexpected fetch ${url}`);
       },
     });
 
+    expect(fetchedUrls).toEqual([
+      "https://www.npr.org/sections/news/archive?date=5-1-2024",
+    ]);
     expect(articles).toEqual([
       {
         id: expect.any(String),
@@ -58,7 +61,38 @@ describe("backfill adapters", () => {
         link: "https://www.npr.org/2024/05/01/123456789/older-story-title",
         source: "NPR",
         created_at: expect.any(String),
-        published_at: "2024-05-01T19:45:00.000Z",
+        published_at: "2024-05-01T18:30:00.000Z",
+      },
+    ]);
+  });
+
+  it("falls back to archive datetime when date-only listings cannot load detail pages", async () => {
+    const dateOnlyArchiveHtml = `
+      <article class="item">
+        <h2 class="title"><a href="/2024/05/01/123456789/date-only-story-title">Date Only NPR Story With Enough Words</a></h2>
+        <time datetime="2024-05-01">May 1, 2024</time>
+      </article>
+    `;
+
+    const articles = await nprBackfillAdapter.fetchArticles({
+      date: "2024-05-01",
+      fetchText: async (url) => {
+        if (url === "https://www.npr.org/sections/news/archive?date=5-1-2024") {
+          return dateOnlyArchiveHtml;
+        }
+
+        throw new Error("timeout");
+      },
+    });
+
+    expect(articles).toEqual([
+      {
+        id: expect.any(String),
+        title: "Date Only NPR Story With Enough Words",
+        link: "https://www.npr.org/2024/05/01/123456789/date-only-story-title",
+        source: "NPR",
+        created_at: expect.any(String),
+        published_at: "2024-05-01T00:00:00.000Z",
       },
     ]);
   });
@@ -145,19 +179,28 @@ describe("backfill adapters", () => {
     expect(articles).toEqual([]);
   });
 
-  it("skips NPR article detail pages that fail during backfill", async () => {
+  it("retries transient NPR archive fetch failures", async () => {
+    let archiveAttempts = 0;
+
     const articles = await nprBackfillAdapter.fetchArticles({
       date: "2024-05-01",
+      sleep: async () => {},
       fetchText: async (url) => {
         if (url === "https://www.npr.org/sections/news/archive?date=5-1-2024") {
+          archiveAttempts += 1;
+          if (archiveAttempts < 2) {
+            throw new Error("Unable to connect. Is the computer able to access the url?");
+          }
+
           return nprArchiveHtml;
         }
 
-        throw new Error("timeout");
+        throw new Error(`unexpected fetch ${url}`);
       },
     });
 
-    expect(articles).toEqual([]);
+    expect(archiveAttempts).toBe(2);
+    expect(articles).toHaveLength(1);
   });
 
   it("sleeps between AP article detail requests", async () => {

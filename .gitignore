@@ -47,11 +47,13 @@ worker
 
 db.sqlite
 *.db
+*-journal
+*.db-wal
+*.db-shm
 *.db.backup.*
 *.db.prod-comparison
 *.db.local.old
 *.pid
 backfill.state.json
 backfill-monthly.state.json
-backfill.log
 snapshots/
