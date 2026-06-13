@@ -26,13 +26,15 @@ export const fetchArticlesFromSource = async (
 
       if (title && relativeLink) {
         const link = new URL(relativeLink, source.baseUrl).href;
+        const discoveredAt = new Date().toISOString();
 
         const article: Article = {
           id: Bun.hash(title + link).toString(),
           title,
           link,
           source: source.name,
-          created_at: new Date().toISOString(),
+          created_at: discoveredAt,
+          published_at: discoveredAt,
         };
 
         if (!isValidArticle(article)) {

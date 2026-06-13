@@ -17,21 +17,19 @@ export default function articlesRoutes(app: Hono) {
 
     const articles = getCachedArticles(offset, limit).map((article) => ({
       ...article,
-      relativeDate: formatRelativeTime(new Date(article.created_at)),
+      relativeDate: formatRelativeTime(
+        new Date(article.published_at || article.created_at),
+      ),
     }));
 
     debug("Articles retrieved:", articles.length);
 
     if (articles.length === 0) {
       return c.html(
-        <div class={styles.articles.emptyState}>
-          End of archive
-        </div>,
+        <div class={styles.articles.emptyState}>End of archive</div>,
       );
     }
 
-    return c.html(
-      <ArticleList items={articles} staggerOffset={offset} />,
-    );
+    return c.html(<ArticleList items={articles} staggerOffset={offset} />);
   });
 }

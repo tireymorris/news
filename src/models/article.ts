@@ -11,6 +11,7 @@ export interface Article {
   link: string;
   source: NewsSource["name"];
   created_at: string;
+  published_at?: string;
 }
 
 export const articleSchema = z.object({
@@ -44,7 +45,7 @@ export const isValidArticle = (article: Article) => {
 
 export const insertArticle = (article: Article): boolean => {
   const insert = db.prepare(
-    "INSERT INTO articles (id, title, link, source, created_at) VALUES (?, ?, ?, ?, ?)",
+    "INSERT INTO articles (id, title, link, source, created_at, published_at) VALUES (?, ?, ?, ?, ?, ?)",
   );
 
   const checkExistence = db.prepare(
@@ -62,6 +63,7 @@ export const insertArticle = (article: Article): boolean => {
         article.link,
         article.source,
         article.created_at,
+        article.published_at || article.created_at,
       );
       return true;
     } catch (error) {
@@ -79,7 +81,7 @@ export const getCachedArticles = (offset: number, limit: number): Article[] => {
 
   const query = `
     SELECT * FROM articles 
-    ORDER BY created_at DESC 
+    ORDER BY COALESCE(published_at, created_at) DESC 
     LIMIT ? OFFSET ?`;
 
   const articles = db.prepare(query).all(limit, offset) as Article[];
@@ -114,7 +116,7 @@ export const searchArticles = (
   const searchSql = `
     SELECT * FROM articles
     WHERE LOWER(title) LIKE LOWER(?) OR LOWER(source) LIKE LOWER(?)
-    ORDER BY created_at DESC
+    ORDER BY COALESCE(published_at, created_at) DESC
     LIMIT ? OFFSET ?`;
 
   const articles = db

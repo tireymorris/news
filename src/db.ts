@@ -30,9 +30,20 @@ db.run(`
     title TEXT UNIQUE,
     link TEXT,
     source TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    published_at DATETIME
   )
 `);
+
+const articleColumns = db.prepare("PRAGMA table_info(articles)").all() as {
+  name: string;
+}[];
+if (!articleColumns.some((column) => column.name === "published_at")) {
+  db.run("ALTER TABLE articles ADD COLUMN published_at DATETIME");
+  db.run(
+    "UPDATE articles SET published_at = created_at WHERE published_at IS NULL",
+  );
+}
 
 db.run(`
   CREATE TABLE IF NOT EXISTS fetch_metadata (

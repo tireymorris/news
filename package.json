@@ -9,6 +9,7 @@
     "db": "bun run src/db.ts",
     "db:pull": "scripts/db-pull.sh",
     "db:status": "sqlite3 articles.db \"SELECT COUNT(*) as total_articles, MIN(created_at) as oldest, MAX(created_at) as newest FROM articles;\"",
+    "backfill": "bun run src/backfill/run.ts",
     "dev": "bun install && DEBUG=true concurrently --restart-tries=3 \"bun css:watch\" \"bun server:watch\" \"bun worker\"",
     "css:watch": "tailwindcss -i ./src/styles/globals.css -o ./public/styles/globals.css --watch",
     "prettier": "bunx prettier --write src/ test/ public/scripts/ --plugin prettier-plugin-tailwindcss",
