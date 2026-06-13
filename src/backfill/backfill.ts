@@ -43,13 +43,17 @@ export const fetchBackfillArticles = async (
   const articles: Article[] = [];
 
   for (const adapter of adapters) {
-    articles.push(
-      ...(await adapter.fetchArticles({
-        date,
-        sleepMs: options.sleepMs,
-        sleep: options.sleep,
-      })),
-    );
+    try {
+      articles.push(
+        ...(await adapter.fetchArticles({
+          date,
+          sleepMs: options.sleepMs,
+          sleep: options.sleep,
+        })),
+      );
+    } catch (error) {
+      console.error(`Skipping ${adapter.name} backfill for ${date}: ${error}`);
+    }
   }
 
   return articles;

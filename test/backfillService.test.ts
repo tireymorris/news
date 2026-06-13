@@ -95,6 +95,39 @@ describe("backfill service", () => {
     ]);
   });
 
+  it("continues a range when an adapter fails for one date", async () => {
+    const progress: {
+      date: string;
+      processedDates: number;
+      inserted: number;
+      totalDates: number;
+    }[] = [];
+
+    await storeBackfillRange(
+      "2024-05-01",
+      "2024-05-02",
+      [
+        {
+          name: "Example",
+          fetchArticles: async ({ date }) => {
+            if (date === "2024-05-01") {
+              throw new Error("timeout");
+            }
+            return [];
+          },
+        },
+      ],
+      {
+        onProgress: (event) => progress.push(event),
+      },
+    );
+
+    expect(progress.map((event) => event.date)).toEqual([
+      "2024-05-01",
+      "2024-05-02",
+    ]);
+  });
+
   it("collects articles from each adapter for the requested date", async () => {
     const articles = await fetchBackfillArticles("2024-05-01", [
       {
