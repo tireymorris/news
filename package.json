@@ -7,7 +7,7 @@
     "build:server": "bun build --compile ./src/server.tsx --outfile ./dist/server",
     "build:worker": "bun build --compile ./src/worker.ts --outfile ./dist/worker",
     "db": "bun run src/db.ts",
-    "db:pull": "cp articles.db articles.db.backup.$(date +%Y%m%d_%H%M%S) && fly sftp get /app/data/articles.db articles.db.production --app hyperwave-news && mv articles.db articles.db.local.old && mv articles.db.production articles.db",
+    "db:pull": "scripts/db-pull.sh",
     "db:status": "sqlite3 articles.db \"SELECT COUNT(*) as total_articles, MIN(created_at) as oldest, MAX(created_at) as newest FROM articles;\"",
     "dev": "bun install && DEBUG=true concurrently --restart-tries=3 \"bun css:watch\" \"bun server:watch\" \"bun worker\"",
     "css:watch": "tailwindcss -i ./src/styles/globals.css -o ./public/styles/globals.css --watch",
