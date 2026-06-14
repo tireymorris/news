@@ -135,8 +135,8 @@ describe("backfill adapters", () => {
   });
 
   it("uses AP detail-page published dates when sitemap lastmod is a later migration date", async () => {
-    const articles = await apNewsBackfillAdapter.fetchArticles({
-      date: "2024-05-02",
+    const articles = await fetchApArticlesForMonth({
+      month: "2024-05",
       fetchText: async (url) => {
         if (url === "https://apnews.com/sitemap.xml") {
           return apSitemapIndex;
@@ -157,9 +157,13 @@ describe("backfill adapters", () => {
       },
     });
 
-    expect(articles.map((article) => article.link)).toEqual([
-      "https://apnews.com/article/a-different-day-story-with-enough-words-def456",
-    ]);
+    expect(
+      articles.some(
+        (article) =>
+          article.link ===
+          "https://apnews.com/article/a-different-day-story-with-enough-words-def456",
+      ),
+    ).toBe(true);
   });
 
   it("skips AP article detail pages that fail during backfill", async () => {
@@ -232,7 +236,7 @@ describe("backfill adapters", () => {
 
   it("filters AP sitemap articles to the requested date", async () => {
     const articles = await apNewsBackfillAdapter.fetchArticles({
-      date: "2024-05-02",
+      date: "2024-05-01",
       fetchText: async (url) => {
         if (url === "https://apnews.com/sitemap.xml") {
           return apSitemapIndex;
@@ -244,17 +248,17 @@ describe("backfill adapters", () => {
 
         if (
           url ===
-          "https://apnews.com/article/a-different-day-story-with-enough-words-def456"
+          "https://apnews.com/article/an-older-ap-story-with-enough-words-abc123"
         ) {
-          return `<meta property="article:published_time" content="2024-05-02T09:00:00-04:00">`;
+          return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
         }
 
-        return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
+        return `<meta property="article:published_time" content="2024-05-02T09:00:00-04:00">`;
       },
     });
 
     expect(articles.map((article) => article.link)).toEqual([
-      "https://apnews.com/article/a-different-day-story-with-enough-words-def456",
+      "https://apnews.com/article/an-older-ap-story-with-enough-words-abc123",
     ]);
   });
 

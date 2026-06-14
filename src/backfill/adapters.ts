@@ -218,7 +218,7 @@ const countApArticleUrls = (xml: string, targetDate?: string): number => {
 
       if (targetDate?.length === 10) {
         const lastmod = $(element).find("lastmod").first().text().trim();
-        if (!lastmodMatchesTargetDay(lastmod, targetDate)) {
+        if (!shouldScanApSitemapUrl(lastmod, targetDate)) {
           return false;
         }
       }
@@ -228,24 +228,19 @@ const countApArticleUrls = (xml: string, targetDate?: string): number => {
     .length;
 };
 
-const lastmodMatchesTargetDay = (
+const shouldScanApSitemapUrl = (
   lastmod: string | undefined,
-  targetDate: string,
+  targetDate?: string,
 ): boolean => {
-  if (targetDate.length !== 10 || !lastmod) {
+  if (!targetDate || targetDate.length !== 10) {
     return true;
   }
 
-  const lastmodDay = lastmod.slice(0, 10);
-  if (lastmodDay === targetDate) {
+  if (!lastmod) {
     return true;
   }
 
-  if (lastmod.slice(0, 7) === targetDate.slice(0, 7)) {
-    return false;
-  }
-
-  return true;
+  return lastmod.slice(0, 10) === targetDate;
 };
 
 const reportApProgress = (
@@ -288,11 +283,7 @@ const parseApSitemapArticles = async (
       continue;
     }
 
-    if (!lastmodMatchesTargetDay(lastmod, targetDate ?? "")) {
-      if (progress) {
-        progress.processedUrls += 1;
-        reportApProgress(progress, onProgress);
-      }
+    if (!shouldScanApSitemapUrl(lastmod, targetDate)) {
       continue;
     }
 
