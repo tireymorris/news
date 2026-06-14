@@ -14,6 +14,7 @@
     "db:status": "sqlite3 articles.db \"SELECT COUNT(*) as total_articles, MIN(COALESCE(published_at, created_at)) as oldest, MAX(COALESCE(published_at, created_at)) as newest FROM articles;\"",
     "backfill": "scripts/backfill.sh",
     "backfill:reset": "scripts/backfill-reset.sh",
+    "backfill:cleanup-ap": "scripts/backfill-cleanup-ap.sh",
     "backfill:range": "bun run src/backfill/run.ts",
     "published-at:repair": "bun run src/backfill/repairRun.ts",
     "dev": "bun install && DEBUG=true concurrently --restart-tries=3 \"bun css:watch\" \"bun server:watch\" \"bun worker\"",

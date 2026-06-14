@@ -1,8 +1,10 @@
-import { describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 import {
   apNewsBackfillAdapter,
+  clearApMonthArticlesCache,
   clearApRequirementCache,
   fetchApArticlesForMonth,
+  isApSyndicationArticle,
   nprBackfillAdapter,
   parseApSitemapIndex,
   resolveApRequirement,
@@ -38,6 +40,11 @@ const apSitemap = `<?xml version="1.0" encoding="UTF-8"?>
   </urlset>`;
 
 describe("backfill adapters", () => {
+  beforeEach(() => {
+    clearApMonthArticlesCache();
+    clearApRequirementCache();
+  });
+
   it("discovers NPR archive articles from listing timestamps without detail fetches", async () => {
     const fetchedUrls: string[] = [];
 
@@ -374,7 +381,7 @@ describe("backfill adapters", () => {
     expect(requireAp).toBe(false);
   });
 
-  it("skips AP sitemap URLs whose lastmod is on another day", async () => {
+  it("filters daily AP articles by detail-page published date", async () => {
     const daySitemap = `<?xml version="1.0" encoding="UTF-8"?>
   <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
@@ -387,6 +394,7 @@ describe("backfill adapters", () => {
     </url>
   </urlset>`;
     const fetchedUrls: string[] = [];
+    clearApMonthArticlesCache();
 
     const articles = await apNewsBackfillAdapter.fetchArticles({
       date: "2024-05-01",
@@ -400,6 +408,13 @@ describe("backfill adapters", () => {
           return daySitemap;
         }
 
+        if (
+          url ===
+          "https://apnews.com/article/different-day-story-with-enough-words-def456"
+        ) {
+          return `<meta property="article:published_time" content="2024-05-02T09:00:00-04:00">`;
+        }
+
         return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
       },
     });
@@ -409,6 +424,77 @@ describe("backfill adapters", () => {
       "https://apnews.com/sitemap.xml",
       "https://apnews.com/ap-sitemap-202405.xml",
       "https://apnews.com/article/same-day-story-with-enough-words-abc123",
+      "https://apnews.com/article/different-day-story-with-enough-words-def456",
+    ]);
+  });
+
+  it("skips AP syndication wire stubs during backfill", async () => {
+    const syndicationSitemap = `<?xml version="1.0" encoding="UTF-8"?>
+  <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+      <loc>https://apnews.com/article/editorial-story-with-enough-words-abc123</loc>
+    </url>
+    <url>
+      <loc>https://apnews.com/article/hawaii-seton-hall-pirates-mens-college-basketball-abc123</loc>
+    </url>
+  </urlset>`;
+    clearApMonthArticlesCache();
+
+    const articles = await apNewsBackfillAdapter.fetchArticles({
+      date: "2024-05-01",
+      fetchText: async (url) => {
+        if (url === "https://apnews.com/sitemap.xml") {
+          return apSitemapIndex;
+        }
+
+        if (url === "https://apnews.com/ap-sitemap-202405.xml") {
+          return syndicationSitemap;
+        }
+
+        return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
+      },
+    });
+
+    expect(isApSyndicationArticle(
+      "https://apnews.com/article/hawaii-seton-hall-pirates-mens-college-basketball-abc123",
+    )).toBe(true);
+    expect(articles.map((article) => article.link)).toEqual([
+      "https://apnews.com/article/editorial-story-with-enough-words-abc123",
+    ]);
+  });
+
+  it("reuses cached month fetches across daily AP requests", async () => {
+    clearApMonthArticlesCache();
+    const fetchedUrls: string[] = [];
+
+    const fetchText = async (url: string) => {
+      fetchedUrls.push(url);
+      if (url === "https://apnews.com/sitemap.xml") {
+        return apSitemapIndex;
+      }
+
+      if (url === "https://apnews.com/ap-sitemap-202405.xml") {
+        return apSitemap;
+      }
+
+      if (
+        url ===
+        "https://apnews.com/article/an-older-ap-story-with-enough-words-abc123"
+      ) {
+        return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
+      }
+
+      return `<meta property="article:published_time" content="2024-05-02T09:00:00-04:00">`;
+    };
+
+    await apNewsBackfillAdapter.fetchArticles({ date: "2024-05-01", fetchText });
+    await apNewsBackfillAdapter.fetchArticles({ date: "2024-05-02", fetchText });
+
+    expect(fetchedUrls).toEqual([
+      "https://apnews.com/sitemap.xml",
+      "https://apnews.com/ap-sitemap-202405.xml",
+      "https://apnews.com/article/an-older-ap-story-with-enough-words-abc123",
+      "https://apnews.com/article/a-different-day-story-with-enough-words-def456",
     ]);
   });
 });
