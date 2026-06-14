@@ -18,6 +18,7 @@ export interface BackfillRequest {
   fetchText?: FetchText;
   sleepMs?: number;
   sleep?: (milliseconds: number) => Promise<void>;
+  onApProgress?: (progress: ApBackfillProgress) => void;
 }
 
 export interface BackfillAdapter {
@@ -205,12 +206,46 @@ const titleFromApUrl = (url: string): string => {
     .join(" ");
 };
 
-const countApArticleUrls = (xml: string): number => {
+const countApArticleUrls = (xml: string, targetDate?: string): number => {
   const $ = load(xml, { xmlMode: true });
   return $("url")
     .toArray()
-    .filter((element) => $(element).find("loc").first().text().includes("/article/"))
+    .filter((element) => {
+      const loc = $(element).find("loc").first().text();
+      if (!loc.includes("/article/")) {
+        return false;
+      }
+
+      if (targetDate?.length === 10) {
+        const lastmod = $(element).find("lastmod").first().text().trim();
+        if (!lastmodMatchesTargetDay(lastmod, targetDate)) {
+          return false;
+        }
+      }
+
+      return true;
+    })
     .length;
+};
+
+const lastmodMatchesTargetDay = (
+  lastmod: string | undefined,
+  targetDate: string,
+): boolean => {
+  if (targetDate.length !== 10 || !lastmod) {
+    return true;
+  }
+
+  const lastmodDay = lastmod.slice(0, 10);
+  if (lastmodDay === targetDate) {
+    return true;
+  }
+
+  if (lastmod.slice(0, 7) === targetDate.slice(0, 7)) {
+    return false;
+  }
+
+  return true;
 };
 
 const reportApProgress = (
@@ -234,6 +269,7 @@ const parseApSitemapArticles = async (
   sleep: (milliseconds: number) => Promise<void>,
   progress?: ApBackfillProgress,
   onProgress?: (progress: ApBackfillProgress) => void,
+  targetDate?: string,
 ): Promise<Article[]> => {
   const $ = load(xml, { xmlMode: true });
   const articles: Article[] = [];
@@ -246,8 +282,17 @@ const parseApSitemapArticles = async (
       .first()
       .text()
       .trim();
+    const lastmod = $(element).find("lastmod").first().text().trim();
 
     if (!loc.includes("/article/")) {
+      continue;
+    }
+
+    if (!lastmodMatchesTargetDay(lastmod, targetDate ?? "")) {
+      if (progress) {
+        progress.processedUrls += 1;
+        reportApProgress(progress, onProgress);
+      }
       continue;
     }
 
@@ -306,6 +351,8 @@ const parseApSitemap = async (
   fetchText: FetchText,
   sleepMs: number,
   sleep: (milliseconds: number) => Promise<void>,
+  progress?: ApBackfillProgress,
+  onProgress?: (progress: ApBackfillProgress) => void,
 ): Promise<Article[]> =>
   parseApSitemapArticles(
     xml,
@@ -313,6 +360,9 @@ const parseApSitemap = async (
     fetchText,
     sleepMs,
     sleep,
+    progress,
+    onProgress,
+    date,
   );
 
 export const fetchApArticlesForMonth = async ({
@@ -422,19 +472,42 @@ export const apNewsBackfillAdapter: BackfillAdapter = {
     fetchText = defaultFetchText,
     sleepMs = 0,
     sleep = defaultSleep,
+    onApProgress,
   }) => {
     const indexXml = await fetchText("https://apnews.com/sitemap.xml");
     const sitemapUrls = parseApSitemapIndex(indexXml, date);
-    const articles: Article[] = [];
+    const sitemapXmls: string[] = [];
 
     for (const sitemapUrl of sitemapUrls) {
+      sitemapXmls.push(await fetchText(sitemapUrl));
+    }
+
+    const progress: ApBackfillProgress = {
+      processedUrls: 0,
+      totalUrls: sitemapXmls.reduce(
+        (total, xml) =>
+          total + countApArticleUrls(xml, date.length === 10 ? date : undefined),
+        0,
+      ),
+      matchedArticles: 0,
+    };
+
+    if (progress.totalUrls > 0) {
+      onApProgress?.(progress);
+    }
+
+    const articles: Article[] = [];
+
+    for (const sitemapXml of sitemapXmls) {
       articles.push(
         ...(await parseApSitemap(
-          await fetchText(sitemapUrl),
+          sitemapXml,
           date,
           fetchText,
           sleepMs,
           sleep,
+          progress,
+          onApProgress,
         )),
       );
     }

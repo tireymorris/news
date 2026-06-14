@@ -369,4 +369,42 @@ describe("backfill adapters", () => {
 
     expect(requireAp).toBe(false);
   });
+
+  it("skips AP sitemap URLs whose lastmod is on another day", async () => {
+    const daySitemap = `<?xml version="1.0" encoding="UTF-8"?>
+  <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+      <loc>https://apnews.com/article/same-day-story-with-enough-words-abc123</loc>
+      <lastmod>2024-05-01T10:15:00-04:00</lastmod>
+    </url>
+    <url>
+      <loc>https://apnews.com/article/different-day-story-with-enough-words-def456</loc>
+      <lastmod>2024-05-02T10:15:00-04:00</lastmod>
+    </url>
+  </urlset>`;
+    const fetchedUrls: string[] = [];
+
+    const articles = await apNewsBackfillAdapter.fetchArticles({
+      date: "2024-05-01",
+      fetchText: async (url) => {
+        fetchedUrls.push(url);
+        if (url === "https://apnews.com/sitemap.xml") {
+          return apSitemapIndex;
+        }
+
+        if (url === "https://apnews.com/ap-sitemap-202405.xml") {
+          return daySitemap;
+        }
+
+        return `<meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
+      },
+    });
+
+    expect(articles).toHaveLength(1);
+    expect(fetchedUrls).toEqual([
+      "https://apnews.com/sitemap.xml",
+      "https://apnews.com/ap-sitemap-202405.xml",
+      "https://apnews.com/article/same-day-story-with-enough-words-abc123",
+    ]);
+  });
 });

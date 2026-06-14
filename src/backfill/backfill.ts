@@ -74,6 +74,7 @@ export const fetchBackfillArticles = async (
           date,
           sleepMs: options.sleepMs,
           sleep: options.sleep,
+          onApProgress: options.onApProgress,
         })),
       );
     } catch (error) {

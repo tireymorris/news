@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { datesBackward, storeBackfillDay } from "./backfill";
 import { dayArticleCounts, minDailyArticles, validateDay } from "./validateDay";
-import { resolveApRequirement } from "./adapters";
+import { resolveApRequirement, type ApBackfillProgress } from "./adapters";
 import {
   enqueueRetry,
   normalizeMonthlyState,
@@ -76,6 +76,21 @@ const logDay = (
   console.log(`[${date}] ${message}${suffix}`);
 };
 
+const logApScan = (date: string, progress: ApBackfillProgress) => {
+  if (progress.processedUrls === 0) {
+    logDay(date, `AP scan starting · ${progress.totalUrls} candidate URLs`);
+    return;
+  }
+
+  const percent = ((progress.processedUrls / progress.totalUrls) * 100).toFixed(
+    1,
+  );
+  logDay(
+    date,
+    `AP scan ${progress.processedUrls}/${progress.totalUrls} (${percent}%) · ${progress.matchedArticles} matched`,
+  );
+};
+
 type DayAttemptResult =
   | { status: "complete" }
   | { status: "retry"; issues: string[] };
@@ -106,6 +121,7 @@ const tryDayOnce = async (
 
     const result = await storeBackfillDay(date, ingestSources, {
       sleepMs: SLEEP_MS,
+      onApProgress: (progress) => logApScan(date, progress),
     });
 
     if (result.nprAttempted) {
