@@ -4,10 +4,12 @@ import {
   clearApMonthArticlesCache,
   clearApRequirementCache,
   fetchApArticlesForMonth,
+  isApStorySitemapUrl,
   isApSyndicationArticle,
   nprBackfillAdapter,
   parseApSitemapIndex,
   resolveApRequirement,
+  shouldAttemptAp,
 } from "../src/backfill/adapters";
 
 const nprArchiveHtml = `
@@ -273,6 +275,95 @@ describe("backfill adapters", () => {
     expect(parseApSitemapIndex(apSitemapIndex, "2024-05-01")).toEqual([
       "https://apnews.com/ap-sitemap-202405.xml",
     ]);
+  });
+
+  it("falls back to year sitemaps when the requested month is missing", () => {
+    const indexWithYearGap = `<?xml version="1.0" encoding="UTF-8"?>
+  <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <sitemap><loc>https://apnews.com/ap-sitemap-201002.xml</loc></sitemap>
+    <sitemap><loc>https://apnews.com/ap-sitemap-201006.xml</loc></sitemap>
+    <sitemap><loc>https://apnews.com/ap-sitemap-201112.xml</loc></sitemap>
+  </sitemapindex>`;
+
+    expect(parseApSitemapIndex(indexWithYearGap, "2010-01-01")).toEqual([
+      "https://apnews.com/ap-sitemap-201002.xml",
+      "https://apnews.com/ap-sitemap-201006.xml",
+    ]);
+  });
+
+  it("accepts legacy AP story URLs without the article path prefix", () => {
+    expect(
+      isApStorySitemapUrl(
+        "https://apnews.com/ap-impact-credibility-key-in-9-11-health-trials-abc123",
+      ),
+    ).toBe(true);
+    expect(isApStorySitemapUrl("https://apnews.com/author/jack-brook")).toBe(
+      false,
+    );
+  });
+
+  it("discovers legacy AP articles from dated sitemap files", async () => {
+    const legacySitemap = `<?xml version="1.0" encoding="UTF-8"?>
+  <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+      <loc>https://apnews.com/legacy-ap-story-with-enough-words-abc123</loc>
+    </url>
+    <url>
+      <loc>https://apnews.com/author/jack-brook</loc>
+    </url>
+  </urlset>`;
+
+    const articles = await apNewsBackfillAdapter.fetchArticles({
+      date: "2010-02-08",
+      fetchText: async (url) => {
+        if (url === "https://apnews.com/sitemap.xml") {
+          return `<?xml version="1.0" encoding="UTF-8"?>
+  <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <sitemap><loc>https://apnews.com/ap-sitemap-201002.xml</loc></sitemap>
+  </sitemapindex>`;
+        }
+
+        if (url === "https://apnews.com/ap-sitemap-201002.xml") {
+          return legacySitemap;
+        }
+
+        if (url === "https://apnews.com/legacy-ap-story-with-enough-words-abc123") {
+          return `<meta property="og:title" content="Legacy AP Story With Enough Words">
+            <meta property="article:published_time" content="2010-02-08T09:00:00-05:00">`;
+        }
+
+        throw new Error(`unexpected fetch ${url}`);
+      },
+    });
+
+    expect(articles).toEqual([
+      {
+        id: expect.any(String),
+        title: "Legacy AP Story With Enough Words",
+        link: "https://apnews.com/legacy-ap-story-with-enough-words-abc123",
+        source: "AP News",
+        created_at: expect.any(String),
+        published_at: "2010-02-08T14:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("requires AP for months without a dedicated sitemap but with year coverage", async () => {
+    clearApRequirementCache();
+
+    const fetchIndex = async (url: string) => {
+      if (url === "https://apnews.com/sitemap.xml") {
+        return `<?xml version="1.0" encoding="UTF-8"?>
+  <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <sitemap><loc>https://apnews.com/ap-sitemap-201002.xml</loc></sitemap>
+  </sitemapindex>`;
+      }
+
+      throw new Error(`unexpected fetch ${url}`);
+    };
+
+    expect(await shouldAttemptAp("2010-01", fetchIndex)).toBe(true);
+    expect(await resolveApRequirement("2010-01", fetchIndex)).toBe(false);
   });
 
   it("fetches AP articles once per month instead of once per day", async () => {

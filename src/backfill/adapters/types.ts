@@ -1,20 +1,13 @@
-import type { FetchText } from "../fetch";
+export type {
+  BackfillProgress,
+  BackfillProvider,
+  BackfillRequest,
+  DayBackfillResult,
+  SourceCounts,
+} from "../../providers/types";
 
-export interface ApBackfillProgress {
-  processedUrls: number;
-  totalUrls: number;
-  matchedArticles: number;
-}
-
-export interface BackfillRequest {
-  date: string;
-  fetchText?: FetchText;
-  sleepMs?: number;
-  sleep?: (milliseconds: number) => Promise<void>;
-  onApProgress?: (progress: ApBackfillProgress) => void;
-}
-
-export interface BackfillAdapter {
+export type BackfillAdapter = import("../../providers/types").BackfillCapabilities & {
   name: string;
-  fetchArticles: (request: BackfillRequest) => Promise<import("models/article").Article[]>;
-}
+};
+
+export type ApBackfillProgress = import("../../providers/types").BackfillProgress;

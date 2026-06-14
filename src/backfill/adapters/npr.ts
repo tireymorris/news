@@ -9,7 +9,7 @@ import {
   parsePublishedAt,
 } from "util/publishedDate";
 import { articleFrom } from "./article";
-import type { BackfillAdapter } from "./types";
+import type { BackfillCapabilities } from "../../providers/types";
 
 const archiveNeedsDetailDate = (archiveDate: string): boolean =>
   !archiveDate.includes("T");
@@ -19,14 +19,20 @@ const nprArchiveUrl = (date: string) => {
   return `https://www.npr.org/sections/news/archive?date=${Number(month)}-${Number(day)}-${year}`;
 };
 
-export const nprBackfillAdapter: BackfillAdapter = {
-  name: "NPR",
-  fetchArticles: async ({
-    date,
-    fetchText = backfillFetchText,
-    sleepMs = 0,
-    sleep = defaultSleep,
-  }) => {
+export const createNprBackfill = (
+  sourceName: string,
+): BackfillCapabilities => ({
+  fetchArticles: fetchNprArticles(sourceName),
+});
+
+const fetchNprArticles =
+  (sourceName: string): BackfillCapabilities["fetchArticles"] =>
+  async ({
+  date,
+  fetchText = backfillFetchText,
+  sleepMs = 0,
+  sleep = defaultSleep,
+}) => {
     const html = await fetchTextWithRetry(
       fetchText,
       nprArchiveUrl(date),
@@ -69,7 +75,7 @@ export const nprBackfillAdapter: BackfillAdapter = {
         }
       }
 
-      const article = articleFrom(title, link, "NPR", publishedAt);
+      const article = articleFrom(title, link, sourceName, publishedAt);
 
       if (article) {
         articles.push(article);
@@ -81,5 +87,8 @@ export const nprBackfillAdapter: BackfillAdapter = {
     }
 
     return articles;
-  },
-};
+  };
+
+export const nprProvider = createNprBackfill("NPR");
+
+export const nprBackfillAdapter = nprProvider;

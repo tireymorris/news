@@ -11,10 +11,81 @@ import {
   type FetchText,
 } from "../fetch";
 import { articleFrom } from "./article";
-import type { ApBackfillProgress, BackfillAdapter } from "./types";
+import type { BackfillCapabilities } from "../../providers/types";
+
+export const AP_EARLIEST_MONTH = "2006-02";
+
+const AP_NON_STORY_PATH_PREFIXES = new Set([
+  "author",
+  "hub",
+  "video",
+  "photo",
+  "gallery",
+  "podcast",
+  "live",
+  "topic",
+  "search",
+]);
+
+export const isApStorySitemapUrl = (url: string): boolean => {
+  let pathname: string;
+
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return false;
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length === 0) {
+    return false;
+  }
+
+  if (AP_NON_STORY_PATH_PREFIXES.has(segments[0])) {
+    return false;
+  }
+
+  if (segments[0] === "article") {
+    return segments.length >= 2 && !isApSyndicationArticle(url);
+  }
+
+  if (segments.length === 1) {
+    return !isApSyndicationArticle(url);
+  }
+
+  return false;
+};
+
+const sitemapMonthKey = (url: string): string | null => {
+  const match = url.match(/ap-sitemap-(\d{6})\.xml/);
+  return match?.[1] ?? null;
+};
 
 export const parseApSitemapIndex = (xml: string, date: string): string[] => {
   const monthKey = date.slice(0, 7).replace("-", "");
+  const yearKey = date.slice(0, 4);
+  const $ = load(xml, { xmlMode: true });
+
+  const sitemapUrls = $("sitemap > loc")
+    .map((_, element) => $(element).text().trim())
+    .get();
+
+  const monthUrls = sitemapUrls.filter((url) => url.includes(monthKey));
+  if (monthUrls.length > 0) {
+    return monthUrls;
+  }
+
+  return sitemapUrls.filter((url) => {
+    const key = sitemapMonthKey(url);
+    return key?.startsWith(yearKey) ?? false;
+  });
+};
+
+export const parseApSitemapIndexForMonth = (
+  xml: string,
+  month: string,
+): string[] => {
+  const monthKey = month.replace("-", "");
   const $ = load(xml, { xmlMode: true });
 
   return $("sitemap > loc")
@@ -83,8 +154,8 @@ const countApArticleUrls = (xml: string): number => {
   return $("url")
     .toArray()
     .filter((element) => {
-      const loc = $(element).find("loc").first().text();
-      return loc.includes("/article/") && !isApSyndicationArticle(loc);
+      const loc = $(element).find("loc").first().text().trim();
+      return isApStorySitemapUrl(loc);
     })
     .length;
 };
@@ -108,6 +179,7 @@ const parseApSitemapArticles = async (
   fetchText: FetchText,
   sleepMs: number,
   sleep: (milliseconds: number) => Promise<void>,
+  sourceName: string,
   progress?: ApBackfillProgress,
   onProgress?: (progress: ApBackfillProgress) => void,
 ): Promise<Article[]> => {
@@ -122,7 +194,7 @@ const parseApSitemapArticles = async (
       .first()
       .text()
       .trim();
-    if (!loc.includes("/article/") || isApSyndicationArticle(loc)) {
+    if (!isApStorySitemapUrl(loc)) {
       continue;
     }
 
@@ -154,7 +226,7 @@ const parseApSitemapArticles = async (
     const article = articleFrom(
       detailTitle || sitemapTitle || titleFromApUrl(loc),
       loc,
-      "AP News",
+      sourceName,
       publishedAt,
     );
     if (article) {
@@ -182,12 +254,14 @@ export const fetchApArticlesForMonth = async ({
   sleepMs = 0,
   sleep = defaultSleep,
   onProgress,
+  sourceName = "AP News",
 }: {
   month: string;
   fetchText?: FetchText;
   sleepMs?: number;
   sleep?: (milliseconds: number) => Promise<void>;
   onProgress?: (progress: ApBackfillProgress) => void;
+  sourceName?: string;
 }): Promise<Article[]> => {
   const indexXml = await fetchText("https://apnews.com/sitemap.xml");
   const sitemapUrls = parseApSitemapIndex(indexXml, `${month}-01`);
@@ -220,6 +294,7 @@ export const fetchApArticlesForMonth = async ({
         fetchText,
         sleepMs,
         sleep,
+        sourceName,
         progress,
         onProgress,
       )),
@@ -227,6 +302,14 @@ export const fetchApArticlesForMonth = async ({
   }
 
   return articles;
+};
+
+export const hasDedicatedApSitemapForMonth = async (
+  month: string,
+  fetchText: FetchText = backfillFetchText,
+): Promise<boolean> => {
+  const indexXml = await fetchText("https://apnews.com/sitemap.xml");
+  return parseApSitemapIndexForMonth(indexXml, month).length > 0;
 };
 
 export const hasApSitemapForMonth = async (
@@ -238,30 +321,32 @@ export const hasApSitemapForMonth = async (
 };
 
 type ApMonthCacheEntry =
-  | { status: "resolved"; requireAp: boolean }
+  | { status: "resolved"; value: boolean }
   | { status: "error"; failedAt: number };
 
-const apMonthCache = new Map<string, ApMonthCacheEntry>();
+const apAttemptCache = new Map<string, ApMonthCacheEntry>();
+const apRequirementCache = new Map<string, ApMonthCacheEntry>();
 const AP_SITEMAP_ERROR_RETRY_MS = 300000;
 const apMonthArticlesCache = new Map<string, Promise<Article[]>>();
 
 export const clearApRequirementCache = () => {
-  apMonthCache.clear();
+  apAttemptCache.clear();
+  apRequirementCache.clear();
 };
 
 export const clearApMonthArticlesCache = () => {
   apMonthArticlesCache.clear();
 };
 
-export const resolveApRequirement = async (
+const readApMonthCache = (
+  cache: Map<string, ApMonthCacheEntry>,
   month: string,
-  fetchText: FetchText = backfillFetchText,
-): Promise<boolean> => {
-  const cached = apMonthCache.get(month);
-  const now = Date.now();
+  now: number,
+): boolean | null => {
+  const cached = cache.get(month);
 
   if (cached?.status === "resolved") {
-    return cached.requireAp;
+    return cached.value;
   }
 
   if (
@@ -271,15 +356,51 @@ export const resolveApRequirement = async (
     return false;
   }
 
+  return null;
+};
+
+const resolveApMonthFlag = async (
+  cache: Map<string, ApMonthCacheEntry>,
+  month: string,
+  resolve: (month: string, fetchText: FetchText) => Promise<boolean>,
+  fetchText: FetchText,
+): Promise<boolean> => {
+  if (month < AP_EARLIEST_MONTH) {
+    return false;
+  }
+
+  const now = Date.now();
+  const cached = readApMonthCache(cache, month, now);
+  if (cached !== null) {
+    return cached;
+  }
+
   try {
-    const requireAp = await hasApSitemapForMonth(month, fetchText);
-    apMonthCache.set(month, { status: "resolved", requireAp });
-    return requireAp;
+    const value = await resolve(month, fetchText);
+    cache.set(month, { status: "resolved", value });
+    return value;
   } catch {
-    apMonthCache.set(month, { status: "error", failedAt: now });
+    cache.set(month, { status: "error", failedAt: now });
     return false;
   }
 };
+
+export const shouldAttemptAp = async (
+  month: string,
+  fetchText: FetchText = backfillFetchText,
+): Promise<boolean> =>
+  resolveApMonthFlag(apAttemptCache, month, hasApSitemapForMonth, fetchText);
+
+export const resolveApRequirement = async (
+  month: string,
+  fetchText: FetchText = backfillFetchText,
+): Promise<boolean> =>
+  resolveApMonthFlag(
+    apRequirementCache,
+    month,
+    hasDedicatedApSitemapForMonth,
+    fetchText,
+  );
 
 const editorialApArticlesForMonth = async ({
   month,
@@ -287,12 +408,14 @@ const editorialApArticlesForMonth = async ({
   sleepMs = 0,
   sleep = defaultSleep,
   onProgress,
+  sourceName = "AP News",
 }: {
   month: string;
   fetchText?: FetchText;
   sleepMs?: number;
   sleep?: (milliseconds: number) => Promise<void>;
   onProgress?: (progress: ApBackfillProgress) => void;
+  sourceName?: string;
 }): Promise<Article[]> => {
   const articles = await fetchApArticlesForMonth({
     month,
@@ -300,22 +423,40 @@ const editorialApArticlesForMonth = async ({
     sleepMs,
     sleep,
     onProgress,
+    sourceName,
   });
 
   return articles.filter((article) => !isApSyndicationArticle(article.link));
 };
 
-export const apNewsBackfillAdapter: BackfillAdapter = {
-  name: "AP News",
+export const createApNewsBackfill = (
+  sourceName: string,
+): BackfillCapabilities => ({
+  progressLabel: "AP scan",
+  shouldAttempt: shouldAttemptAp,
+  requireCoverage: resolveApRequirement,
+  clearCaches: () => {
+    clearApRequirementCache();
+    clearApMonthArticlesCache();
+  },
+  fetchMonth: async (month, options) =>
+    editorialApArticlesForMonth({
+      month,
+      fetchText: options.fetchText,
+      sleepMs: options.sleepMs,
+      sleep: options.sleep,
+      onProgress: options.onProgress,
+      sourceName,
+    }),
   fetchArticles: async ({
     date,
     fetchText = backfillFetchText,
     sleepMs = 0,
     sleep = defaultSleep,
-    onApProgress,
+    onProgress,
   }) => {
     const month = date.slice(0, 7);
-    let monthArticles = apMonthArticlesCache.get(month);
+    let monthArticles = apMonthArticlesCache.get(`${sourceName}:${month}`);
 
     if (!monthArticles) {
       monthArticles = editorialApArticlesForMonth({
@@ -323,12 +464,17 @@ export const apNewsBackfillAdapter: BackfillAdapter = {
         fetchText,
         sleepMs,
         sleep,
-        onProgress: onApProgress,
+        onProgress,
+        sourceName,
       });
-      apMonthArticlesCache.set(month, monthArticles);
+      apMonthArticlesCache.set(`${sourceName}:${month}`, monthArticles);
     }
 
     const articles = await monthArticles;
     return articles.filter((article) => article.published_at?.startsWith(date));
   },
-};
+});
+
+export const apNewsProvider = createApNewsBackfill("AP News");
+
+export const apNewsBackfillAdapter = apNewsProvider;

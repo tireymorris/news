@@ -1,9 +1,12 @@
 import db from "@/db";
+import { providerById } from "@/providers";
 import type { Article } from "models/article";
 import { isValidArticle } from "models/article";
 import { extractTitleFromHtml } from "util/publishedDate";
 import { titleFromApUrl } from "../adapters";
 import { logRepairProgress, repairArticles } from "./loop";
+
+const apSourceName = () => providerById("ap")!.name;
 
 export const isApSlugTitle = (
   article: Pick<Article, "title" | "link">,
@@ -11,7 +14,9 @@ export const isApSlugTitle = (
 
 export const getApSlugTitleArticles = (): Article[] =>
   (
-    db.prepare("SELECT * FROM articles WHERE source = 'AP News'").all() as Article[]
+    db
+      .prepare("SELECT * FROM articles WHERE source = ?")
+      .all(apSourceName()) as Article[]
   ).filter(isApSlugTitle);
 
 export const repairApTitlesForArticles = async (

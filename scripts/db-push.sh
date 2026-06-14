@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/lib/provider-sources.sh"
+
 app="${FLY_APP:-hyperwave-news}"
 remote_db="${REMOTE_DB:-/app/data/articles.db}"
 local_db="${LOCAL_DB:-articles.db}"
 timestamp="$(date +%Y%m%d_%H%M%S)"
 remote_backup="${remote_db}.backup.${timestamp}"
 confirm="${CONFIRM_DB_PUSH:-}"
+sources="${SOURCES:-$(default_provider_sources)}"
+sources_sql_in="$(provider_sources_sql_in "$sources")"
 
 if [[ ! -f "$local_db" ]]; then
   echo "Local database not found: $local_db" >&2
@@ -20,14 +24,14 @@ if [[ "$integrity_result" != "ok" ]]; then
   exit 1
 fi
 
-echo "Local database summary:"
-sqlite3 -header -column "$local_db" <<'SQL'
+echo "Local database summary (sources=$sources):"
+sqlite3 -header -column "$local_db" <<SQL
 SELECT source,
        COUNT(*) AS articles,
        MIN(date(published_at)) AS earliest,
        MAX(date(published_at)) AS latest
 FROM articles
-WHERE source IN ('NPR', 'AP News')
+WHERE source IN ($sources_sql_in)
 GROUP BY source
 ORDER BY source;
 SQL
@@ -55,6 +59,6 @@ if [[ "$remote_integrity" != "ok" ]]; then
 fi
 
 echo "Remote database summary:"
-fly ssh console --app "$app" -C "sqlite3 '$remote_db' \"SELECT source, COUNT(*) AS articles, MIN(date(published_at)) AS earliest, MAX(date(published_at)) AS latest FROM articles WHERE source IN ('NPR', 'AP News') GROUP BY source ORDER BY source;\""
+fly ssh console --app "$app" -C "sqlite3 '$remote_db' \"SELECT source, COUNT(*) AS articles, MIN(date(published_at)) AS earliest, MAX(date(published_at)) AS latest FROM articles WHERE source IN ($sources_sql_in) GROUP BY source ORDER BY source;\""
 
 echo "Push complete. Remote backup: $remote_backup"

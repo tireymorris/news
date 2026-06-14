@@ -5,7 +5,7 @@ import {
   extractPublishedAtFromHtml,
   parsePublishedAt,
 } from "util/publishedDate";
-import { NewsSource } from "../models/newsSources";
+import type { LiveSourceConfig } from "@/providers";
 
 export type FetchText = (url: string) => Promise<string>;
 
@@ -21,7 +21,7 @@ const defaultFetchText: FetchText = async (url) => {
 const listingPublishedAt = (
   $: CheerioAPI,
   element: Element,
-  source: NewsSource,
+  source: LiveSourceConfig & { name: string },
 ): string | null => {
   if (!source.publishedAtSelector) {
     return null;
@@ -37,7 +37,7 @@ const listingPublishedAt = (
 
 const detailPublishedAt = async (
   link: string,
-  source: NewsSource,
+  source: LiveSourceConfig & { name: string },
   fetchText: FetchText,
 ): Promise<string | null> => {
   if (!source.detailPublishedAtSelector) {
@@ -50,7 +50,7 @@ const detailPublishedAt = async (
 const buildArticle = async (
   $: CheerioAPI,
   element: Element,
-  source: NewsSource,
+  source: LiveSourceConfig & { name: string },
   fetchText: FetchText,
 ): Promise<Article | null> => {
   const titleElement = source.titleSelector
@@ -93,7 +93,7 @@ const buildArticle = async (
 };
 
 export const fetchArticlesFromSource = async (
-  source: NewsSource,
+  source: LiveSourceConfig & { name: string },
   { fetchText = defaultFetchText }: FetchArticlesOptions = {},
 ): Promise<Article[]> => {
   log(`Fetching articles from: ${source.name}`);

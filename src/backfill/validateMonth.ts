@@ -1,10 +1,12 @@
 import db from "@/db";
 import { sparseDaysInMonth } from "./validateDay";
+import {
+  backfillProviderNames,
+  emptySourceCounts,
+  type SourceCounts,
+} from "@/providers";
 
-export interface MonthCounts {
-  npr: number;
-  ap: number;
-}
+export type MonthCounts = SourceCounts;
 
 export interface MonthValidation {
   ok: boolean;
@@ -13,89 +15,101 @@ export interface MonthValidation {
 }
 
 export const monthArticleCounts = (month: string): MonthCounts => {
+  const counts = emptySourceCounts();
+  const sources = backfillProviderNames();
+  const placeholders = sources.map(() => "?").join(", ");
+
   const rows = db
     .prepare(
       `SELECT source, COUNT(*) AS count
        FROM articles
-       WHERE source IN ('NPR', 'AP News')
+       WHERE source IN (${placeholders})
          AND strftime('%Y-%m', published_at) = ?
        GROUP BY source`,
     )
-    .all(month) as { source: string; count: number }[];
+    .all(...sources, month) as { source: string; count: number }[];
 
-  const counts: MonthCounts = { npr: 0, ap: 0 };
   for (const row of rows) {
-    if (row.source === "NPR") {
-      counts.npr = row.count;
-    }
-    if (row.source === "AP News") {
-      counts.ap = row.count;
+    if (row.source in counts) {
+      counts[row.source] = row.count;
     }
   }
 
   return counts;
 };
 
+const qualityIssue = (
+  month: string,
+  sql: string,
+  message: (count: number) => string,
+): string | null => {
+  const sources = backfillProviderNames();
+  const placeholders = sources.map(() => "?").join(", ");
+  const result = db
+    .prepare(sql.replace("{{sources}}", placeholders))
+    .get(...sources, month) as { count?: number; groups?: number };
+
+  const count = result.count ?? result.groups ?? 0;
+  return count > 0 ? message(count) : null;
+};
+
 export const validateMonth = (
   month: string,
-  options: { requireAp?: boolean; minArticles?: number } = {},
+  options: {
+    requireCoverage?: Record<string, boolean>;
+    minArticles?: number;
+  } = {},
 ): MonthValidation => {
   const issues: string[] = [];
   const counts = monthArticleCounts(month);
 
-  const duplicateLinks = db
-    .prepare(
-      `SELECT COUNT(*) AS groups
-       FROM (
-         SELECT link
-         FROM articles
-         WHERE source IN ('NPR', 'AP News')
-           AND strftime('%Y-%m', published_at) = ?
-         GROUP BY link
-         HAVING COUNT(*) > 1
-       )`,
-    )
-    .get(month) as { groups: number };
-
-  if (duplicateLinks.groups > 0) {
-    issues.push(`${duplicateLinks.groups} duplicate link groups`);
+  const duplicateLinks = qualityIssue(
+    month,
+    `SELECT COUNT(*) AS groups
+     FROM (
+       SELECT link
+       FROM articles
+       WHERE source IN ({{sources}})
+         AND strftime('%Y-%m', published_at) = ?
+       GROUP BY link
+       HAVING COUNT(*) > 1
+     )`,
+    (count) => `${count} duplicate link groups`,
+  );
+  if (duplicateLinks) {
+    issues.push(duplicateLinks);
   }
 
-  const nullPublishedAt = db
-    .prepare(
-      `SELECT COUNT(*) AS count
-       FROM articles
-       WHERE source IN ('NPR', 'AP News')
-         AND strftime('%Y-%m', published_at) = ?
-         AND published_at IS NULL`,
-    )
-    .get(month) as { count: number };
-
-  if (nullPublishedAt.count > 0) {
-    issues.push(`${nullPublishedAt.count} articles with null published_at`);
+  const nullPublishedAt = qualityIssue(
+    month,
+    `SELECT COUNT(*) AS count
+     FROM articles
+     WHERE source IN ({{sources}})
+       AND strftime('%Y-%m', published_at) = ?
+       AND published_at IS NULL`,
+    (count) => `${count} articles with null published_at`,
+  );
+  if (nullPublishedAt) {
+    issues.push(nullPublishedAt);
   }
 
   const sparseDays = sparseDaysInMonth(month, options);
-  const sparseNprDays = sparseDays.filter((day) => day.source === "NPR");
-  const sparseApDays = sparseDays.filter((day) => day.source === "AP News");
+  const sparseBySource = sparseDays.reduce<Record<string, typeof sparseDays>>(
+    (groups, day) => {
+      groups[day.source] ??= [];
+      groups[day.source].push(day);
+      return groups;
+    },
+    {},
+  );
 
-  if (sparseNprDays.length > 0) {
-    const examples = sparseNprDays
+  for (const [source, sparseDays] of Object.entries(sparseBySource)) {
+    const examples = sparseDays
       .slice(0, 3)
       .map((day) => `${day.date}(${day.count})`)
       .join(", ");
     issues.push(
-      `NPR sparse on ${sparseNprDays.length} days (e.g. ${examples})`,
-    );
-  }
-
-  if (sparseApDays.length > 0) {
-    const examples = sparseApDays
-      .slice(0, 3)
-      .map((day) => `${day.date}(${day.count})`)
-      .join(", ");
-    issues.push(
-      `AP News sparse on ${sparseApDays.length} days (e.g. ${examples})`,
+      `${source} sparse on ${sparseDays.length} days (e.g. ${examples})`,
     );
   }
 

@@ -6,6 +6,7 @@ import {
   sparseDaysInMonth,
   validateDay,
 } from "../src/backfill/validateDay";
+import "../src/backfill/providers";
 
 const clearArticles = () => {
   db.run("DELETE FROM articles");
@@ -23,11 +24,13 @@ describe("validateDay", () => {
               ('2', 'Six Seven Eight Nine Ten', 'https://example.com/2', 'AP News', '2024-05-01', '2024-05-01')`,
     );
 
-    expect(dayArticleCounts("2024-05-01")).toEqual({ npr: 1, ap: 1 });
+    expect(dayArticleCounts("2024-05-01")).toEqual({ NPR: 1, "AP News": 1 });
   });
 
   it("treats zero articles as unfetched", () => {
-    const result = validateDay("2024-05-01", { requireAp: false });
+    const result = validateDay("2024-05-01", {
+      requireCoverage: { NPR: true },
+    });
     expect(result.ok).toBe(false);
     expect(result.sparseSources).toEqual(["NPR"]);
     expect(result.issues[0]).toContain("NPR has 0 articles (need 1)");
@@ -43,10 +46,10 @@ describe("validateDay", () => {
        VALUES ${values}`,
     );
 
-    expect(validateDay("2024-05-01", { requireAp: false })).toEqual({
+    expect(validateDay("2024-05-01", { requireCoverage: { NPR: true } })).toEqual({
       ok: true,
       issues: [],
-      counts: { npr: 3, ap: 0 },
+      counts: { NPR: 3, "AP News": 0 },
       sparseSources: [],
     });
   });
@@ -62,7 +65,7 @@ describe("validateDay", () => {
     );
 
     const sparseDays = sparseDaysInMonth("2024-05", {
-      requireAp: false,
+      requireCoverage: { NPR: true },
       minArticles: 1,
     });
 

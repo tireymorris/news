@@ -1,33 +1,21 @@
 /**
  * SINGLE SOURCE OF TRUTH for the entire hyperwave visual identity.
  *
- * Everything lives here:
- *   1. Design tokens (colors, typography, spacing, animation, etc.)
- *   2. Component style mappings (Tailwind class strings)
- *   3. Theme CSS (custom properties, keyframes, utility classes)
- *
- * To swap themes, replace this file.
+ * Provider colors/badges are generated from src/providers/catalog.ts.
  */
 
-// ==================================================================
-// DESIGN TOKENS
-// ==================================================================
+import {
+  providerBadgeClass,
+  providerBadgeCss,
+  providerColorRecord,
+  providerCssVariables,
+  providerStyleMap,
+} from "./providers";
 
 // ------------------------------------------------------------------
-// News Provider Colors (color-coded by source)
+// News Provider Colors (from provider registry)
 // ------------------------------------------------------------------
-export const providers = {
-  npr: {
-    name: "NPR",
-    color: { h: 200, s: 70, l: 45 },
-    background: { h: 200, s: 70, l: 97 },
-  },
-  ap: {
-    name: "AP News",
-    color: { h: 0, s: 85, l: 45 },
-    background: { h: 0, s: 85, l: 97 },
-  },
-} as const;
+export const providers = providerColorRecord();
 
 // Provider color for CSS variable
 export function providerColor(provider: keyof typeof providers): string {
@@ -286,10 +274,7 @@ export const themeCss = `
   --chart-3: ${colors.accent.h} ${colors.accent.s}% ${colors.accent.l}%;
   --chart-4: 200 60% 45%;
   --chart-5: 25 65% 45%;
-  --provider-npr: ${providers.npr.color.h} ${providers.npr.color.s}% ${providers.npr.color.l}%;
-  --provider-npr-bg: ${providers.npr.background.h} ${providers.npr.background.s}% ${providers.npr.background.l}%;
-  --provider-ap: ${providers.ap.color.h} ${providers.ap.color.s}% ${providers.ap.color.l}%;
-  --provider-ap-bg: ${providers.ap.background.h} ${providers.ap.background.s}% ${providers.ap.background.l}%;
+${providerCssVariables()}
 }
 
 body {
@@ -402,18 +387,7 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 999px;
   display: inline-block;
 }
-
-.provider-badge-npr {
-  background: hsl(var(--provider-npr-bg));
-  color: hsl(var(--provider-npr));
-  border: 1.5px solid hsl(var(--provider-npr));
-}
-
-.provider-badge-ap {
-  background: hsl(var(--provider-ap-bg));
-  color: hsl(var(--provider-ap));
-  border: 1.5px solid hsl(var(--provider-ap));
-}
+${providerBadgeCss()}
 
 /* Timestamp */
 .timestamp {
@@ -596,8 +570,7 @@ h1, h2, h3, h4, h5, h6 {
 // ==================================================================
 
 export function providerBadge(source: string): string {
-  const key = source.toLowerCase().replace(/[\s-]+/g, "").replace(/news$/, "") as keyof typeof styles.providers;
-  return styles.providers[key] ?? styles.util.providerBadge;
+  return providerBadgeClass(source);
 }
 
 export const styles = {
@@ -666,8 +639,14 @@ export const styles = {
   // PROVIDER STYLES
   // ================================================================
   providerStyle(source: string): string {
-    const key = source.toLowerCase().replace(/[\s-]+/g, "").replace(/news$/, "") as keyof typeof styles.providers;
-    return styles.providers[key] ?? styles.util.badge;
+    const provider = Object.values(providers).find(
+      (entry) => entry.name.toLowerCase() === source.toLowerCase(),
+    );
+    const key = provider
+      ? Object.entries(providers).find(([, entry]) => entry === provider)?.[0]
+      : undefined;
+
+    return key ? styles.providers[key] : styles.util.badge;
   },
 
   // ================================================================
@@ -684,10 +663,7 @@ export const styles = {
   // ================================================================
   // PROVIDERS
   // ================================================================
-  providers: {
-    npr: "provider-badge provider-badge-npr",
-    ap: "provider-badge provider-badge-ap",
-  },
+  providers: providerStyleMap(),
 
   // ================================================================
   // ANIMATIONS (custom utility classes defined in themeCss)

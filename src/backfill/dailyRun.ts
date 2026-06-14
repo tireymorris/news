@@ -1,6 +1,12 @@
-import { datesBackward, storeBackfillDay } from "./backfill";
+import "./providers";
+
+import { backfillDates, storeBackfillDay } from "./backfill";
 import { dayArticleCounts, minDailyArticles, validateDay } from "./validateDay";
-import { resolveApRequirement, type ApBackfillProgress } from "./adapters";
+import {
+  resolveProviderPlans,
+  type BackfillProgress,
+  type BackfillProvider,
+} from "./providers";
 import {
   enqueueRetry,
   retryWaitMs,
@@ -34,9 +40,14 @@ const logDay = (
   console.log(`[${date}] ${message}${suffix}`);
 };
 
-const logApScan = (date: string, progress: ApBackfillProgress) => {
+const logProviderProgress = (
+  date: string,
+  provider: BackfillProvider,
+  progress: BackfillProgress,
+) => {
+  const label = provider.progressLabel ?? provider.name;
   if (progress.processedUrls === 0) {
-    logDay(date, `AP scan starting · ${progress.totalUrls} candidate URLs`);
+    logDay(date, `${label} starting · ${progress.totalUrls} candidate URLs`);
     return;
   }
 
@@ -45,9 +56,19 @@ const logApScan = (date: string, progress: ApBackfillProgress) => {
   );
   logDay(
     date,
-    `AP scan ${progress.processedUrls}/${progress.totalUrls} (${percent}%) · ${progress.matchedArticles} matched`,
+    `${label} ${progress.processedUrls}/${progress.totalUrls} (${percent}%) · ${progress.matchedArticles} matched`,
   );
 };
+
+const coverageRequirements = (
+  plans: Awaited<ReturnType<typeof resolveProviderPlans>>,
+) =>
+  Object.fromEntries(
+    plans.map((plan) => [plan.provider.name, plan.requireCoverage]),
+  );
+
+const attemptSources = (plans: Awaited<ReturnType<typeof resolveProviderPlans>>) =>
+  plans.filter((plan) => plan.shouldAttempt).map((plan) => plan.provider.name);
 
 type DayAttemptResult =
   | { status: "complete" }
@@ -58,10 +79,18 @@ const tryDayOnce = async (
   retryAttempt?: number,
 ): Promise<DayAttemptResult> => {
   const month = date.slice(0, 7);
-  const requireAp = await resolveApRequirement(month);
-  const precheck = validateDay(date, { requireAp });
+  const plans = await resolveProviderPlans(month);
+  const requireCoverage = coverageRequirements(plans);
+  const counts = dayArticleCounts(date);
+  const precheck = validateDay(date, { requireCoverage });
+  const needsAttempt = plans.some(
+    (plan) =>
+      plan.shouldAttempt &&
+      plan.requireCoverage &&
+      (counts[plan.provider.name] ?? 0) === 0,
+  );
 
-  if (precheck.ok) {
+  if (precheck.ok && !needsAttempt) {
     return { status: "complete" };
   }
 
@@ -73,50 +102,52 @@ const tryDayOnce = async (
       `starting${attemptLabel} · unfetched sources · gaps: ${precheck.issues.join("; ")}`,
     );
 
-    const ingestSources = precheck.sparseSources.filter(
-      (source) => source !== "AP News" || requireAp,
-    );
+    const ingestSources = [
+      ...precheck.sparseSources,
+      ...attemptSources(plans).filter(
+        (source) => !precheck.sparseSources.includes(source),
+      ),
+    ];
 
-    const result = await storeBackfillDay(date, ingestSources, {
+    const uniqueSources = [...new Set(ingestSources)];
+    const result = await storeBackfillDay(date, uniqueSources, {
       sleepMs: SLEEP_MS,
-      onApProgress: (progress) => logApScan(date, progress),
+      onProviderProgress: (provider, progress) =>
+        logProviderProgress(date, provider, progress),
     });
 
-    if (result.nprAttempted) {
-      logDay(date, "NPR fetched", {
-        inserted: result.nprInserted,
-        db: dayArticleCounts(date).npr,
+    for (const [source, outcome] of Object.entries(result)) {
+      if (!outcome.attempted) {
+        continue;
+      }
+
+      logDay(date, `${source} fetched`, {
+        inserted: outcome.inserted,
+        db: dayArticleCounts(date)[source],
       });
     }
 
-    if (result.apAttempted) {
-      logDay(date, "AP fetched", {
-        inserted: result.apInserted,
-        db: dayArticleCounts(date).ap,
-      });
-    }
-
-    const counts = dayArticleCounts(date);
+    const refreshedCounts = dayArticleCounts(date);
     const minArticles = minDailyArticles();
-    const nprSatisfied =
-      counts.npr >= minArticles || (result.nprAttempted && ingestSources.includes("NPR"));
-    const apSatisfied =
-      !requireAp ||
-      counts.ap >= minArticles ||
-      (result.apAttempted && ingestSources.includes("AP News"));
+    const allSatisfied = plans.every((plan) => {
+      const count = refreshedCounts[plan.provider.name] ?? 0;
+      const attempted = result[plan.provider.name]?.attempted ?? false;
 
-    if (nprSatisfied && apSatisfied) {
-      logDay(date, "complete", {
-        npr: counts.npr,
-        ap: counts.ap,
-      });
+      return (
+        !plan.requireCoverage ||
+        count >= minArticles ||
+        (attempted && uniqueSources.includes(plan.provider.name))
+      );
+    });
+
+    if (allSatisfied) {
+      logDay(date, "complete", refreshedCounts);
       return { status: "complete" };
     }
 
-    const validation = validateDay(date, { requireAp });
+    const validation = validateDay(date, { requireCoverage });
     logDay(date, "still unfetched", {
-      npr: counts.npr,
-      ap: counts.ap,
+      ...refreshedCounts,
       issues: validation.issues,
     });
     return { status: "retry", issues: validation.issues };
@@ -130,10 +161,26 @@ const tryDayOnce = async (
 const run = async () => {
   const state = dayOnlyState(loadState());
   const completed = new Set(state.completed);
-  const dates = datesBackward(END_DATE, FLOOR_DATE);
+  const dates = backfillDates(FLOOR_DATE, END_DATE);
+
+  for (const date of [...completed]) {
+    const month = date.slice(0, 7);
+    const plans = await resolveProviderPlans(month);
+    const counts = dayArticleCounts(date);
+    const stale = plans.some(
+      (plan) =>
+        plan.requireCoverage && (counts[plan.provider.name] ?? 0) === 0,
+    );
+
+    if (stale) {
+      completed.delete(date);
+    }
+  }
+  state.completed = [...completed].sort();
+  saveState(state);
 
   console.log(
-    `Backfill: ${dates.length} days from ${END_DATE} backward to ${FLOOR_DATE}`,
+    `Backfill: ${dates.length} days from ${FLOOR_DATE} forward to ${END_DATE}`,
   );
   console.log(
     `Progress: ${completed.size}/${dates.length} days complete, ${Object.keys(state.retry).length} queued for retry`,
@@ -157,7 +204,7 @@ const run = async () => {
     const result = await tryDayOnce(date, state.retry[date]?.attempts);
     if (result.status === "complete") {
       completed.add(date);
-      state.completed = [...completed].sort().reverse();
+      state.completed = [...completed].sort();
       delete state.retry[date];
       saveState(state);
       consecutiveNetworkFailures = 0;
@@ -172,7 +219,7 @@ const run = async () => {
 
     const entry = enqueueRetry(state.retry, date, result.issues);
     saveState(state);
-    logDay(date, "queued for retry, continuing backward", entry);
+    logDay(date, "queued for retry, continuing forward", entry);
 
     if (result.issues.some(isNetworkIssue)) {
       consecutiveNetworkFailures += 1;
@@ -188,7 +235,7 @@ const run = async () => {
     }
   }
 
-  console.log(`Backfill complete through ${FLOOR_DATE}.`);
+  console.log(`Backfill complete through ${END_DATE}.`);
 };
 
 await run();

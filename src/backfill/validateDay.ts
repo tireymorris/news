@@ -1,12 +1,18 @@
+import "./providers";
+
 import db from "@/db";
 import { backfillDates } from "./backfill";
 import { monthBounds } from "./month";
-import type { MonthCounts } from "./validateMonth";
+import {
+  backfillProviderNames,
+  emptySourceCounts,
+  type SourceCounts,
+} from "@/providers";
 
 export interface DayValidation {
   ok: boolean;
   issues: string[];
-  counts: MonthCounts;
+  counts: SourceCounts;
   sparseSources: string[];
 }
 
@@ -19,24 +25,24 @@ export const minDailyArticles = (): number => {
     : DEFAULT_MIN_DAILY_ARTICLES;
 };
 
-export const dayArticleCounts = (date: string): MonthCounts => {
+export const dayArticleCounts = (date: string): SourceCounts => {
+  const counts = emptySourceCounts();
+  const sources = backfillProviderNames();
+  const placeholders = sources.map(() => "?").join(", ");
+
   const rows = db
     .prepare(
       `SELECT source, COUNT(*) AS count
        FROM articles
-       WHERE source IN ('NPR', 'AP News')
+       WHERE source IN (${placeholders})
          AND date(published_at) = ?
        GROUP BY source`,
     )
-    .all(date) as { source: string; count: number }[];
+    .all(...sources, date) as { source: string; count: number }[];
 
-  const counts: MonthCounts = { npr: 0, ap: 0 };
   for (const row of rows) {
-    if (row.source === "NPR") {
-      counts.npr = row.count;
-    }
-    if (row.source === "AP News") {
-      counts.ap = row.count;
+    if (row.source in counts) {
+      counts[row.source] = row.count;
     }
   }
 
@@ -45,21 +51,25 @@ export const dayArticleCounts = (date: string): MonthCounts => {
 
 export const validateDay = (
   date: string,
-  options: { requireAp?: boolean; minArticles?: number } = {},
+  options: {
+    requireCoverage?: Record<string, boolean>;
+    minArticles?: number;
+  } = {},
 ): DayValidation => {
   const counts = dayArticleCounts(date);
   const minArticles = options.minArticles ?? minDailyArticles();
   const issues: string[] = [];
   const sparseSources: string[] = [];
 
-  if (minArticles > 0 && counts.npr < minArticles) {
-    issues.push(`NPR has ${counts.npr} articles (need ${minArticles})`);
-    sparseSources.push("NPR");
-  }
-
-  if (options.requireAp && minArticles > 0 && counts.ap < minArticles) {
-    issues.push(`AP News has ${counts.ap} articles (need ${minArticles})`);
-    sparseSources.push("AP News");
+  for (const [source, count] of Object.entries(counts)) {
+    if (
+      options.requireCoverage?.[source] &&
+      minArticles > 0 &&
+      count < minArticles
+    ) {
+      issues.push(`${source} has ${count} articles (need ${minArticles})`);
+      sparseSources.push(source);
+    }
   }
 
   return {
@@ -78,7 +88,10 @@ export interface SparseDay {
 
 export const sparseDaysInMonth = (
   month: string,
-  options: { requireAp?: boolean; minArticles?: number } = {},
+  options: {
+    requireCoverage?: Record<string, boolean>;
+    minArticles?: number;
+  } = {},
 ): SparseDay[] => {
   const { startDate, endDate } = monthBounds(month);
   const sparseDays: SparseDay[] = [];
@@ -89,7 +102,7 @@ export const sparseDaysInMonth = (
       sparseDays.push({
         date,
         source,
-        count: source === "NPR" ? validation.counts.npr : validation.counts.ap,
+        count: validation.counts[source] ?? 0,
       });
     }
   }

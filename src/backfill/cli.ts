@@ -1,5 +1,11 @@
-import { backfillAdapters } from "./adapters";
-import { selectBackfillAdapters, storeBackfillRange } from "./backfill";
+import "./providers";
+
+import {
+  backfillProviderNames,
+  backfillProviders,
+  selectBackfillProviders,
+} from "./providers";
+import { storeBackfillRange } from "./backfill";
 import { cleanupApBackfill } from "./repair/cleanupAp";
 import { repairStoredApTitles } from "./repair/apTitles";
 import { repairStoredPublishedAt } from "./repair/publishedAt";
@@ -42,15 +48,12 @@ const runRange = async () => {
 
   if (!startDate || !datePattern.test(startDate) || !datePattern.test(endDate)) {
     console.error(
-      "Usage: backfill range YYYY-MM-DD [YYYY-MM-DD] [--source=NPR|AP News] [--sleep-ms=250]",
+      `Usage: backfill range YYYY-MM-DD [YYYY-MM-DD] [--source=${backfillProviderNames().join("|")}] [--sleep-ms=250]`,
     );
     process.exit(1);
   }
 
-  const adapters = selectBackfillAdapters(
-    backfillAdapters,
-    sourceArg || undefined,
-  );
+  const adapters = selectBackfillProviders(sourceArg || undefined);
   if (adapters.length === 0) {
     console.error(`No backfill adapter found for source: ${sourceArg}`);
     process.exit(1);

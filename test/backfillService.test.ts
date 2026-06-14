@@ -7,6 +7,7 @@ import {
   storeBackfillDay,
   storeBackfillRange,
 } from "../src/backfill/backfill";
+import "../src/backfill/providers";
 
 const olderArticle = {
   id: "older-article",
@@ -33,19 +34,12 @@ describe("backfill service", () => {
     ]);
   });
 
-  it("selects adapters by source name", () => {
-    const adapters = [
-      { name: "NPR", fetchArticles: async () => [] },
-      { name: "AP News", fetchArticles: async () => [] },
-    ];
-
+  it("selects providers by source name", () => {
+    expect(selectBackfillAdapters("npr").map((provider) => provider.name)).toEqual(
+      ["NPR"],
+    );
     expect(
-      selectBackfillAdapters(adapters, "npr").map((adapter) => adapter.name),
-    ).toEqual(["NPR"]);
-    expect(
-      selectBackfillAdapters(adapters, "AP News").map(
-        (adapter) => adapter.name,
-      ),
+      selectBackfillAdapters("AP News").map((provider) => provider.name),
     ).toEqual(["AP News"]);
   });
 
@@ -197,7 +191,7 @@ describe("backfill service", () => {
     const fetchedSources: string[] = [];
 
     const result = await storeBackfillDay("2024-05-01", ["NPR", "AP News"], {
-      adapters: [
+      providers: [
         {
           name: "NPR",
           fetchArticles: async () => {
@@ -215,7 +209,10 @@ describe("backfill service", () => {
       ],
     });
 
-    expect(result).toEqual({ nprInserted: 0, apInserted: 0, nprAttempted: true, apAttempted: true });
+    expect(result).toEqual({
+      NPR: { inserted: 0, attempted: true },
+      "AP News": { inserted: 0, attempted: true },
+    });
     expect(fetchedSources).toEqual(["NPR", "AP News"]);
   });
 });

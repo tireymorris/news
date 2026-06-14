@@ -1,6 +1,6 @@
 import db from "@/db";
 import { debug, log } from "util/log";
-import { NewsSource, newsSources } from "models/newsSources";
+import { liveNewsProviders } from "@/providers";
 import { z } from "zod";
 import { fetchArticlesFromSource } from "util/crawler";
 import { formatArticleTime, updateLastFetchTime } from "util/time";
@@ -9,7 +9,7 @@ export interface Article {
   id: string;
   title: string;
   link: string;
-  source: NewsSource["name"];
+  source: string;
   created_at: string;
   published_at?: string;
 }
@@ -202,7 +202,7 @@ export const fetchAndStoreArticles = async (): Promise<Article[]> => {
 const fetchAllArticles = async (): Promise<Article[]> => {
   const allArticles: Article[] = [];
 
-  for (const source of newsSources) {
+  for (const source of liveNewsProviders()) {
     const fetchedArticles = await fetchArticlesFromSource(source);
     allArticles.push(...fetchedArticles);
   }

@@ -14,11 +14,15 @@ const dbPath =
 if (process.env.NODE_ENV === "production") {
   const dataDir = "/app/data";
   if (!existsSync(dataDir)) {
-    console.log("Creating /app/data directory...");
+    if (process.env.DEBUG === "true") {
+      console.log("Creating /app/data directory...");
+    }
     mkdirSync(dataDir, { recursive: true });
   }
-  console.log(`Using production database path: ${dbPath}`);
-} else {
+  if (process.env.DEBUG === "true") {
+    console.log(`Using production database path: ${dbPath}`);
+  }
+} else if (process.env.DEBUG === "true") {
   console.log(`Using development database path: ${dbPath}`);
 }
 

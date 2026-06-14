@@ -1,12 +1,13 @@
+import "./providers";
+
 import { insertArticle, Article } from "models/article";
 import {
-  backfillAdapters,
-  BackfillAdapter,
-  fetchApArticlesForMonth,
-  hasApSitemapForMonth,
-  nprBackfillAdapter,
-  type ApBackfillProgress,
-} from "./adapters";
+  backfillProviders,
+  emptyDayBackfillResult,
+  selectBackfillProviders,
+  type BackfillProvider,
+  type DayBackfillResult,
+} from "./providers";
 import { defaultSleep } from "./fetch";
 import { monthBounds } from "./month";
 
@@ -46,61 +47,9 @@ export const datesBackward = (
   return dates;
 };
 
-export const selectBackfillAdapters = (
-  adapters: BackfillAdapter[],
-  source?: string,
-): BackfillAdapter[] => {
-  if (!source) {
-    return adapters;
-  }
+export const selectBackfillAdapters = selectBackfillProviders;
 
-  const normalizedSource = source.toLowerCase();
-  return adapters.filter(
-    (adapter) => adapter.name.toLowerCase() === normalizedSource,
-  );
-};
-
-export const fetchBackfillArticles = async (
-  date: string,
-  adapters: BackfillAdapter[] = backfillAdapters,
-  options: BackfillRangeOptions = {},
-): Promise<Article[]> => {
-  const articles: Article[] = [];
-  const errors: string[] = [];
-
-  for (const adapter of adapters) {
-    try {
-      articles.push(
-        ...(await adapter.fetchArticles({
-          date,
-          sleepMs: options.sleepMs,
-          sleep: options.sleep,
-          onApProgress: options.onApProgress,
-        })),
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      errors.push(`${adapter.name}: ${message}`);
-    }
-  }
-
-  if (errors.length > 0 && articles.length === 0) {
-    throw new Error(errors.join("; "));
-  }
-
-  return articles;
-};
-
-export const storeBackfillArticles = async (
-  date: string,
-  adapters: BackfillAdapter[] = backfillAdapters,
-  options: BackfillRangeOptions = {},
-): Promise<Article[]> => {
-  const articles = await fetchBackfillArticles(date, adapters, options);
-  return articles.filter(insertArticle);
-};
-
-export interface BackfillProgress {
+export interface BackfillRangeProgress {
   date: string;
   processedDates: number;
   inserted: number;
@@ -114,18 +63,64 @@ export interface BackfillProgress {
 export interface BackfillRangeOptions {
   sleepMs?: number;
   sleep?: (milliseconds: number) => Promise<void>;
-  onProgress?: (progress: BackfillProgress) => void;
-  onApProgress?: (progress: ApBackfillProgress) => void;
+  onProgress?: (progress: BackfillRangeProgress) => void;
+  onProviderProgress?: (
+    provider: BackfillProvider,
+    progress: import("./providers").BackfillProgress,
+  ) => void;
   onPhase?: (
-    phase: "npr-start" | "npr-done" | "ap-start" | "ap-done" | "ap-skip",
+    phase: `${string}-start` | `${string}-done` | `${string}-skip`,
     detail?: Record<string, unknown>,
   ) => void;
 }
 
+export type BackfillProgress = BackfillRangeProgress;
+
+export const fetchBackfillArticles = async (
+  date: string,
+  providers: BackfillProvider[] = backfillProviders(),
+  options: BackfillRangeOptions = {},
+): Promise<Article[]> => {
+  const articles: Article[] = [];
+  const errors: string[] = [];
+
+  for (const provider of providers) {
+    try {
+      articles.push(
+        ...(await provider.fetchArticles({
+          date,
+          sleepMs: options.sleepMs,
+          sleep: options.sleep,
+          onProgress: (progress) =>
+            options.onProviderProgress?.(provider, progress),
+        })),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`${provider.name}: ${message}`);
+    }
+  }
+
+  if (errors.length > 0 && articles.length === 0) {
+    throw new Error(errors.join("; "));
+  }
+
+  return articles;
+};
+
+export const storeBackfillArticles = async (
+  date: string,
+  providers: BackfillProvider[] = backfillProviders(),
+  options: BackfillRangeOptions = {},
+): Promise<Article[]> => {
+  const articles = await fetchBackfillArticles(date, providers, options);
+  return articles.filter(insertArticle);
+};
+
 export const storeBackfillRange = async (
   startDate: string,
   endDate = startDate,
-  adapters: BackfillAdapter[] = backfillAdapters,
+  providers: BackfillProvider[] = backfillProviders(),
   options: BackfillRangeOptions = {},
 ): Promise<Article[]> => {
   const insertedArticles: Article[] = [];
@@ -140,7 +135,7 @@ export const storeBackfillRange = async (
     let error: string | undefined;
 
     try {
-      const articles = await fetchBackfillArticles(date, adapters, options);
+      const articles = await fetchBackfillArticles(date, providers, options);
       discovered = articles.length;
       insertedForDate = articles.filter(insertArticle);
     } catch (caught) {
@@ -170,9 +165,7 @@ export const storeBackfillRange = async (
 
 export interface MonthBackfillResult {
   month: string;
-  nprInserted: number;
-  apInserted: number;
-  requireAp: boolean;
+  insertedByProvider: Record<string, number>;
 }
 
 export const storeBackfillMonth = async (
@@ -180,75 +173,66 @@ export const storeBackfillMonth = async (
   options: BackfillRangeOptions = {},
 ): Promise<MonthBackfillResult> => {
   const { startDate, endDate } = monthBounds(month);
-  const nprDates = backfillDates(startDate, endDate);
-  options.onPhase?.("npr-start", {
-    startDate,
-    endDate,
-    days: nprDates.length,
-    sleepMs: options.sleepMs ?? 0,
-  });
+  const insertedByProvider: Record<string, number> = {};
 
-  const nprInserted = (
-    await storeBackfillRange(startDate, endDate, [nprBackfillAdapter], options)
-  ).length;
-  options.onPhase?.("npr-done", { inserted: nprInserted });
-
-  const requireAp = await hasApSitemapForMonth(month);
-  let apInserted = 0;
-
-  if (requireAp) {
-    options.onPhase?.("ap-start", { month });
-    const apArticles = await fetchApArticlesForMonth({
+  for (const provider of backfillProviders()) {
+    const shouldAttempt = await (provider.shouldAttempt ?? (async () => true))(
       month,
-      sleepMs: options.sleepMs,
-      sleep: options.sleep,
-      onProgress: options.onApProgress,
-    });
-    apInserted = apArticles.filter(insertArticle).length;
-    options.onPhase?.("ap-done", { inserted: apInserted });
-  } else {
-    options.onPhase?.("ap-skip", { month, reason: "no sitemap for month" });
+    );
+
+    if (!shouldAttempt) {
+      options.onPhase?.(`${provider.name}-skip`, {
+        month,
+        reason: "no coverage for month",
+      });
+      insertedByProvider[provider.name] = 0;
+      continue;
+    }
+
+    options.onPhase?.(`${provider.name}-start`, { month, startDate, endDate });
+
+    let inserted = 0;
+    if (provider.fetchMonth) {
+      const articles = await provider.fetchMonth(month, {
+        sleepMs: options.sleepMs,
+        sleep: options.sleep,
+        onProgress: (progress) =>
+          options.onProviderProgress?.(provider, progress),
+      });
+      inserted = articles.filter(insertArticle).length;
+    } else {
+      inserted = (
+        await storeBackfillRange(startDate, endDate, [provider], options)
+      ).length;
+    }
+
+    insertedByProvider[provider.name] = inserted;
+    options.onPhase?.(`${provider.name}-done`, { inserted });
   }
 
-  return { month, nprInserted, apInserted, requireAp };
+  return { month, insertedByProvider };
 };
 
 export const storeBackfillDay = async (
   date: string,
   sources: string[],
-  options: BackfillRangeOptions & { adapters?: BackfillAdapter[] } = {},
-): Promise<{
-  nprInserted: number;
-  apInserted: number;
-  nprAttempted: boolean;
-  apAttempted: boolean;
-}> => {
-  const catalog = options.adapters ?? backfillAdapters;
-  let nprInserted = 0;
-  let apInserted = 0;
-  let nprAttempted = false;
-  let apAttempted = false;
+  options: BackfillRangeOptions & { providers?: BackfillProvider[] } = {},
+): Promise<DayBackfillResult> => {
+  const catalog = options.providers ?? backfillProviders();
+  const result = emptyDayBackfillResult();
 
   for (const source of sources) {
-    const adapters = selectBackfillAdapters(catalog, source);
-    if (adapters.length === 0) {
+    const providers = selectBackfillProviders(source, catalog);
+    if (providers.length === 0) {
       continue;
     }
 
     const inserted = (
-      await storeBackfillArticles(date, adapters, options)
+      await storeBackfillArticles(date, providers, options)
     ).length;
 
-    if (source === "NPR") {
-      nprAttempted = true;
-      nprInserted = inserted;
-    }
-
-    if (source === "AP News") {
-      apAttempted = true;
-      apInserted = inserted;
-    }
+    result[source] = { inserted, attempted: true };
   }
 
-  return { nprInserted, apInserted, nprAttempted, apAttempted };
+  return result;
 };
