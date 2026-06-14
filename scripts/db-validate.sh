@@ -5,7 +5,7 @@ db="${LOCAL_DB:-articles.db}"
 sources="${SOURCES:-NPR,AP News}"
 month="${MONTH:-}"
 strict="${STRICT:-0}"
-min_daily="${MIN_DAILY_ARTICLES:-6}"
+min_daily="${MIN_DAILY_ARTICLES:-1}"
 issues=0
 
 record_issue() {

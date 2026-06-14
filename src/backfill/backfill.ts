@@ -218,10 +218,17 @@ export const storeBackfillDay = async (
   date: string,
   sources: string[],
   options: BackfillRangeOptions & { adapters?: BackfillAdapter[] } = {},
-): Promise<{ nprInserted: number; apInserted: number }> => {
+): Promise<{
+  nprInserted: number;
+  apInserted: number;
+  nprAttempted: boolean;
+  apAttempted: boolean;
+}> => {
   const catalog = options.adapters ?? backfillAdapters;
   let nprInserted = 0;
   let apInserted = 0;
+  let nprAttempted = false;
+  let apAttempted = false;
 
   for (const source of sources) {
     const adapters = selectBackfillAdapters(catalog, source);
@@ -234,13 +241,15 @@ export const storeBackfillDay = async (
     ).length;
 
     if (source === "NPR") {
+      nprAttempted = true;
       nprInserted = inserted;
     }
 
     if (source === "AP News") {
+      apAttempted = true;
       apInserted = inserted;
     }
   }
 
-  return { nprInserted, apInserted };
+  return { nprInserted, apInserted, nprAttempted, apAttempted };
 };

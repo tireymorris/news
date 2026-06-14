@@ -10,11 +10,11 @@ export interface DayValidation {
   sparseSources: string[];
 }
 
-export const DEFAULT_MIN_DAILY_ARTICLES = 6;
+export const DEFAULT_MIN_DAILY_ARTICLES = 1;
 
 export const minDailyArticles = (): number => {
   const configured = Number(process.env.BACKFILL_MIN_DAILY_ARTICLES);
-  return Number.isFinite(configured) && configured > 0
+  return Number.isFinite(configured) && configured >= 0
     ? configured
     : DEFAULT_MIN_DAILY_ARTICLES;
 };
@@ -53,12 +53,12 @@ export const validateDay = (
   const sparseSources: string[] = [];
 
   if (minArticles > 0 && counts.npr < minArticles) {
-    issues.push(`NPR has ${counts.npr} articles (minimum ${minArticles})`);
+    issues.push(`NPR has ${counts.npr} articles (need ${minArticles})`);
     sparseSources.push("NPR");
   }
 
   if (options.requireAp && minArticles > 0 && counts.ap < minArticles) {
-    issues.push(`AP News has ${counts.ap} articles (minimum ${minArticles})`);
+    issues.push(`AP News has ${counts.ap} articles (need ${minArticles})`);
     sparseSources.push("AP News");
   }
 

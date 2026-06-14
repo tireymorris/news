@@ -215,7 +215,7 @@ describe("backfill service", () => {
       ],
     });
 
-    expect(result).toEqual({ nprInserted: 0, apInserted: 0 });
+    expect(result).toEqual({ nprInserted: 0, apInserted: 0, nprAttempted: true, apAttempted: true });
     expect(fetchedSources).toEqual(["NPR", "AP News"]);
   });
 });

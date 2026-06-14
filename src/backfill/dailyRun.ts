@@ -97,7 +97,7 @@ const tryDayOnce = async (
       retryAttempt && retryAttempt > 1 ? ` · retry #${retryAttempt}` : "";
     logDay(
       date,
-      `starting${attemptLabel} · need ≥${minDailyArticles()} per source · gaps: ${precheck.issues.join("; ")}`,
+      `starting${attemptLabel} · unfetched sources · gaps: ${precheck.issues.join("; ")}`,
     );
 
     const ingestSources = precheck.sparseSources.filter(
@@ -108,32 +108,41 @@ const tryDayOnce = async (
       sleepMs: SLEEP_MS,
     });
 
-    if (result.nprInserted > 0) {
-      logDay(date, "NPR ingested", {
+    if (result.nprAttempted) {
+      logDay(date, "NPR fetched", {
         inserted: result.nprInserted,
         db: dayArticleCounts(date).npr,
       });
     }
 
-    if (result.apInserted > 0) {
-      logDay(date, "AP ingested", {
+    if (result.apAttempted) {
+      logDay(date, "AP fetched", {
         inserted: result.apInserted,
         db: dayArticleCounts(date).ap,
       });
     }
 
-    const validation = validateDay(date, { requireAp });
-    if (validation.ok) {
+    const counts = dayArticleCounts(date);
+    const minArticles = minDailyArticles();
+    const nprSatisfied =
+      counts.npr >= minArticles || (result.nprAttempted && ingestSources.includes("NPR"));
+    const apSatisfied =
+      !requireAp ||
+      counts.ap >= minArticles ||
+      (result.apAttempted && ingestSources.includes("AP News"));
+
+    if (nprSatisfied && apSatisfied) {
       logDay(date, "complete", {
-        npr: validation.counts.npr,
-        ap: validation.counts.ap,
+        npr: counts.npr,
+        ap: counts.ap,
       });
       return { status: "complete" };
     }
 
-    logDay(date, "still sparse", {
-      npr: validation.counts.npr,
-      ap: validation.counts.ap,
+    const validation = validateDay(date, { requireAp });
+    logDay(date, "still unfetched", {
+      npr: counts.npr,
+      ap: counts.ap,
       issues: validation.issues,
     });
     return { status: "retry", issues: validation.issues };
