@@ -1,23 +1,18 @@
-import { existsSync, readFileSync, writeFileSync } from "fs";
 import { datesBackward, storeBackfillDay } from "./backfill";
 import { dayArticleCounts, minDailyArticles, validateDay } from "./validateDay";
 import { resolveApRequirement, type ApBackfillProgress } from "./adapters";
 import {
   enqueueRetry,
-  normalizeMonthlyState,
   retryWaitMs,
-  selectNextMonth,
+  selectNextPending,
   sleep,
-  type MonthlyState,
-} from "./monthlyScheduler";
+} from "./scheduler";
+import { dayOnlyState, loadState, saveState } from "./state";
 
-const STATE_FILE = process.env.BACKFILL_STATE_FILE || "backfill.state.json";
-const LEGACY_STATE_FILE = "backfill-monthly.state.json";
 const END_DATE =
   process.env.BACKFILL_END_DATE || new Date().toISOString().slice(0, 10);
 const FLOOR_DATE = process.env.BACKFILL_FLOOR_DATE || "2010-01-01";
 const SLEEP_MS = Number(process.env.BACKFILL_SLEEP_MS || "500");
-const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const NETWORK_STREAK_PAUSE_THRESHOLD = 3;
 
 const isNetworkIssue = (message: string): boolean =>
@@ -29,43 +24,6 @@ const isNetworkIssue = (message: string): boolean =>
 
 const networkPauseMs = (streak: number): number =>
   Math.min(5000 * 2 ** Math.max(streak - NETWORK_STREAK_PAUSE_THRESHOLD, 0), 60000);
-
-const saveState = (state: MonthlyState) => {
-  writeFileSync(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`);
-};
-
-const loadState = (): MonthlyState => {
-  const readState = (path: string): MonthlyState => {
-    if (!existsSync(path)) {
-      return { completed: [], retry: {} };
-    }
-
-    return normalizeMonthlyState(
-      JSON.parse(readFileSync(path, "utf8")) as {
-        completed?: string[];
-        retry?: MonthlyState["retry"];
-        failed?: Record<string, string[]>;
-      },
-    );
-  };
-
-  if (!existsSync(STATE_FILE) && existsSync(LEGACY_STATE_FILE)) {
-    const state = readState(LEGACY_STATE_FILE);
-    saveState(state);
-    return state;
-  }
-
-  return readState(STATE_FILE);
-};
-
-const dayOnlyState = (state: MonthlyState): MonthlyState => ({
-  completed: state.completed.filter((entry) => DATE_KEY_PATTERN.test(entry)),
-  retry: Object.fromEntries(
-    Object.entries(state.retry).filter(([entry]) =>
-      DATE_KEY_PATTERN.test(entry),
-    ),
-  ),
-});
 
 const logDay = (
   date: string,
@@ -184,7 +142,7 @@ const run = async () => {
   let consecutiveNetworkFailures = 0;
 
   while (completed.size < dates.length) {
-    const date = selectNextMonth(dates, completed, state.retry);
+    const date = selectNextPending(dates, completed, state.retry);
     if (!date) {
       const waitMs = retryWaitMs(dates, completed, state.retry);
       const queued = Object.keys(state.retry).filter((key) => !completed.has(key));
@@ -206,7 +164,7 @@ const run = async () => {
 
       if (completed.size % 25 === 0 || completed.size === dates.length) {
         console.log(
-          `Progress: ${completed.size}/${dates.length} days complete · next: ${selectNextMonth(dates, completed, state.retry) ?? "waiting on retry backoff"} · ${Object.keys(state.retry).length} queued for retry`,
+          `Progress: ${completed.size}/${dates.length} days complete · next: ${selectNextPending(dates, completed, state.retry) ?? "waiting on retry backoff"} · ${Object.keys(state.retry).length} queued for retry`,
         );
       }
       continue;

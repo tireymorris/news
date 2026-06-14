@@ -7,6 +7,7 @@ import {
   nprBackfillAdapter,
   type ApBackfillProgress,
 } from "./adapters";
+import { defaultSleep } from "./fetch";
 import { monthBounds } from "./month";
 
 const ISO_DATE_LENGTH = 10;
@@ -120,9 +121,6 @@ export interface BackfillRangeOptions {
     detail?: Record<string, unknown>,
   ) => void;
 }
-
-const defaultSleep = (milliseconds: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 
 export const storeBackfillRange = async (
   startDate: string,

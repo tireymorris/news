@@ -1,13 +1,13 @@
 import db from "@/db";
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import { isApSyndicationArticle, resolveApRequirement } from "./adapters";
-import { validateDay } from "./validateDay";
+import { existsSync } from "fs";
+import { isApSyndicationArticle, resolveApRequirement } from "../adapters";
+import { loadState, saveState } from "../state";
+import { validateDay } from "../validateDay";
 
-const STATE_FILE = process.env.BACKFILL_STATE_FILE || "backfill.state.json";
 const CORRUPT_INGEST_DATE =
   process.env.BACKFILL_CORRUPT_INGEST_DATE || "2026-06-14";
 
-const run = async () => {
+export const cleanupApBackfill = async () => {
   const deletedByIngest = db
     .prepare(
       `DELETE FROM articles WHERE source = 'AP News' AND date(created_at) = ?`,
@@ -30,23 +30,16 @@ const run = async () => {
     deletedSyndication += 1;
   }
 
-  if (!existsSync(STATE_FILE)) {
-    console.log(
-      JSON.stringify({ deletedByIngest, deletedSyndication, stateRemoved: 0 }),
-    );
-    return;
+  if (!existsSync(process.env.BACKFILL_STATE_FILE || "backfill.state.json")) {
+    return { deletedByIngest, deletedSyndication, stateKept: 0, stateRemoved: 0 };
   }
 
-  const state = JSON.parse(readFileSync(STATE_FILE, "utf8")) as {
-    completed?: string[];
-    retry?: Record<string, unknown>;
-  };
-  const completed = state.completed ?? [];
+  const state = loadState();
   const kept: string[] = [];
   const removed: string[] = [];
   const apRequirementByMonth = new Map<string, boolean>();
 
-  for (const date of completed) {
+  for (const date of state.completed) {
     const month = date.slice(0, 7);
     let requireAp = apRequirementByMonth.get(month);
 
@@ -63,21 +56,14 @@ const run = async () => {
     removed.push(date);
   }
 
-  writeFileSync(
-    STATE_FILE,
-    `${JSON.stringify({ completed: kept, retry: state.retry ?? {} }, null, 2)}\n`,
-  );
+  saveState({ completed: kept, retry: state.retry ?? {} });
 
-  console.log(
-    JSON.stringify({
-      deletedByIngest,
-      deletedSyndication,
-      stateKept: kept.length,
-      stateRemoved: removed.length,
-      oldestKept: kept.at(-1) ?? null,
-      newestRemoved: removed[0] ?? null,
-    }),
-  );
+  return {
+    deletedByIngest,
+    deletedSyndication,
+    stateKept: kept.length,
+    stateRemoved: removed.length,
+    oldestKept: kept.at(-1) ?? null,
+    newestRemoved: removed[0] ?? null,
+  };
 };
-
-run();

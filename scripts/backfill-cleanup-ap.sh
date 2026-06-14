@@ -1,4 +1,3 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-bun run src/backfill/cleanupApBackfill.ts
+exec "$(dirname "$0")/backfill.sh" cleanup-ap "$@"

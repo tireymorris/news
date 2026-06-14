@@ -6,11 +6,11 @@ import {
   retryDelayMs,
   retryWaitMs,
   selectNextMonth,
-} from "../src/backfill/monthlyScheduler";
+} from "../src/backfill/scheduler";
 
 const months = ["2026-06", "2025-05", "2025-04", "2010-01"];
 
-describe("monthlyScheduler", () => {
+describe("scheduler", () => {
   it("prefers fresh incomplete months over retry queue entries", () => {
     const completed = new Set(["2026-06", "2025-05"]);
     const retry = {

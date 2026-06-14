@@ -1,185 +1,17 @@
 import { load } from "cheerio";
-import { Article, isValidArticle } from "models/article";
+import type { Article } from "models/article";
 import {
   extractPublishedAtFromHtml,
-  parsePublishedAt,
+  extractTitleFromHtml,
 } from "util/publishedDate";
-
-export type FetchText = (url: string) => Promise<string>;
-
-export interface ApBackfillProgress {
-  processedUrls: number;
-  totalUrls: number;
-  matchedArticles: number;
-}
-
-export interface BackfillRequest {
-  date: string;
-  fetchText?: FetchText;
-  sleepMs?: number;
-  sleep?: (milliseconds: number) => Promise<void>;
-  onApProgress?: (progress: ApBackfillProgress) => void;
-}
-
-export interface BackfillAdapter {
-  name: string;
-  fetchArticles: (request: BackfillRequest) => Promise<Article[]>;
-}
-
-const FETCH_TIMEOUT_MS = 15000;
-const FETCH_RETRY_ATTEMPTS = 3;
-
-const defaultSleep = (milliseconds: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
-
-const retryDelayMs = (attempt: number): number =>
-  Math.min(5000 * 2 ** Math.max(attempt - 1, 0), 30000);
-
-const isTransientFetchError = (error: unknown): boolean => {
-  const message = error instanceof Error ? error.message : String(error);
-  return (
-    message.includes("TimeoutError") ||
-    message.includes("Unable to connect") ||
-    message.includes("typo in the url") ||
-    message.includes("ECONNRESET") ||
-    message.includes("connection")
-  );
-};
-
-const fetchTextWithRetry = async (
-  fetchText: FetchText,
-  url: string,
-  sleep: (milliseconds: number) => Promise<void> = defaultSleep,
-): Promise<string> => {
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= FETCH_RETRY_ATTEMPTS; attempt++) {
-    try {
-      return await fetchText(url);
-    } catch (error) {
-      lastError = error;
-      if (attempt < FETCH_RETRY_ATTEMPTS && isTransientFetchError(error)) {
-        await sleep(retryDelayMs(attempt));
-        continue;
-      }
-
-      throw error;
-    }
-  }
-
-  throw lastError;
-};
-
-const archiveNeedsDetailDate = (archiveDate: string): boolean =>
-  !archiveDate.includes("T");
-
-const defaultFetchText: FetchText = async (url) => {
-  const response = await fetch(url, {
-    headers: { "User-Agent": "hyperwave-backfill/0.1" },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status}`);
-  }
-
-  return response.text();
-};
-
-const articleId = (title: string, link: string) =>
-  Bun.hash(title + link).toString();
-
-const articleFrom = (
-  title: string,
-  link: string,
-  source: string,
-  publishedAt: string,
-): Article | null => {
-  const date = new Date(publishedAt);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  const article = {
-    id: articleId(title, link),
-    title,
-    link,
-    source,
-    created_at: new Date().toISOString(),
-    published_at: date.toISOString(),
-  };
-
-  return isValidArticle(article) ? article : null;
-};
-
-const nprArchiveUrl = (date: string) => {
-  const [year, month, day] = date.split("-");
-  return `https://www.npr.org/sections/news/archive?date=${Number(month)}-${Number(day)}-${year}`;
-};
-
-export const nprBackfillAdapter: BackfillAdapter = {
-  name: "NPR",
-  fetchArticles: async ({
-    date,
-    fetchText = defaultFetchText,
-    sleepMs = 0,
-    sleep = defaultSleep,
-  }) => {
-    const html = await fetchTextWithRetry(
-      fetchText,
-      nprArchiveUrl(date),
-      sleep,
-    );
-    const $ = load(html);
-    const articles: Article[] = [];
-    const archiveArticles = $("article").toArray();
-
-    for (const [index, element] of archiveArticles.entries()) {
-      const linkElement = $(element).find("h2.title a[href*='/20']").first();
-      const title = linkElement.text().trim();
-      const href = linkElement.attr("href");
-      const archiveDate = $(element).find("time[datetime]").attr("datetime");
-
-      if (!title || !href || !archiveDate?.startsWith(date)) {
-        continue;
-      }
-
-      const link = new URL(href, "https://www.npr.org").href;
-      let publishedAt = parsePublishedAt(archiveDate);
-      let detailFetched = false;
-
-      if (!publishedAt?.startsWith(date)) {
-        continue;
-      }
-
-      if (archiveNeedsDetailDate(archiveDate)) {
-        try {
-          const detailPublishedAt = extractPublishedAtFromHtml(
-            await fetchTextWithRetry(fetchText, link, sleep),
-          );
-          detailFetched = true;
-
-          if (detailPublishedAt?.startsWith(date)) {
-            publishedAt = detailPublishedAt;
-          }
-        } catch {
-          // Keep the archive listing timestamp when detail pages are unavailable.
-        }
-      }
-
-      const article = articleFrom(title, link, "NPR", publishedAt);
-
-      if (article) {
-        articles.push(article);
-      }
-
-      if (detailFetched && sleepMs > 0 && index < archiveArticles.length - 1) {
-        await sleep(sleepMs);
-      }
-    }
-
-    return articles;
-  },
-};
+import {
+  backfillFetchText,
+  defaultSleep,
+  fetchTextWithRetry,
+  type FetchText,
+} from "../fetch";
+import { articleFrom } from "./article";
+import type { ApBackfillProgress, BackfillAdapter } from "./types";
 
 export const parseApSitemapIndex = (xml: string, date: string): string[] => {
   const monthKey = date.slice(0, 7).replace("-", "");
@@ -231,7 +63,7 @@ export const isApSyndicationArticle = (url: string): boolean => {
   return AP_SYNDICATION_SLUG_MARKERS.some((marker) => slug.includes(marker));
 };
 
-const titleFromApUrl = (url: string): string => {
+export const titleFromApUrl = (url: string): string => {
   const slug = new URL(url).pathname.split("/").filter(Boolean).at(-1) || "";
   const words = slug.split("-").filter((word) => !/^[a-f0-9]{6,}$/i.test(word));
 
@@ -295,10 +127,11 @@ const parseApSitemapArticles = async (
     }
 
     let publishedAt: string | null = null;
+    let detailTitle: string | null = null;
     try {
-      publishedAt = extractPublishedAtFromHtml(
-        await fetchTextWithRetry(fetchText, loc, sleep),
-      );
+      const html = await fetchTextWithRetry(fetchText, loc, sleep);
+      publishedAt = extractPublishedAtFromHtml(html);
+      detailTitle = extractTitleFromHtml(html);
     } catch {
       if (progress) {
         progress.processedUrls += 1;
@@ -319,7 +152,7 @@ const parseApSitemapArticles = async (
     }
 
     const article = articleFrom(
-      sitemapTitle || titleFromApUrl(loc),
+      detailTitle || sitemapTitle || titleFromApUrl(loc),
       loc,
       "AP News",
       publishedAt,
@@ -343,28 +176,9 @@ const parseApSitemapArticles = async (
   return articles;
 };
 
-const parseApSitemap = async (
-  xml: string,
-  date: string,
-  fetchText: FetchText,
-  sleepMs: number,
-  sleep: (milliseconds: number) => Promise<void>,
-  progress?: ApBackfillProgress,
-  onProgress?: (progress: ApBackfillProgress) => void,
-): Promise<Article[]> =>
-  parseApSitemapArticles(
-    xml,
-    (publishedAt) => publishedAt.startsWith(date),
-    fetchText,
-    sleepMs,
-    sleep,
-    progress,
-    onProgress,
-  );
-
 export const fetchApArticlesForMonth = async ({
   month,
-  fetchText = defaultFetchText,
+  fetchText = backfillFetchText,
   sleepMs = 0,
   sleep = defaultSleep,
   onProgress,
@@ -417,7 +231,7 @@ export const fetchApArticlesForMonth = async ({
 
 export const hasApSitemapForMonth = async (
   month: string,
-  fetchText: FetchText = defaultFetchText,
+  fetchText: FetchText = backfillFetchText,
 ): Promise<boolean> => {
   const indexXml = await fetchText("https://apnews.com/sitemap.xml");
   return parseApSitemapIndex(indexXml, `${month}-01`).length > 0;
@@ -429,7 +243,6 @@ type ApMonthCacheEntry =
 
 const apMonthCache = new Map<string, ApMonthCacheEntry>();
 const AP_SITEMAP_ERROR_RETRY_MS = 300000;
-
 const apMonthArticlesCache = new Map<string, Promise<Article[]>>();
 
 export const clearApRequirementCache = () => {
@@ -442,7 +255,7 @@ export const clearApMonthArticlesCache = () => {
 
 export const resolveApRequirement = async (
   month: string,
-  fetchText: FetchText = defaultFetchText,
+  fetchText: FetchText = backfillFetchText,
 ): Promise<boolean> => {
   const cached = apMonthCache.get(month);
   const now = Date.now();
@@ -470,7 +283,7 @@ export const resolveApRequirement = async (
 
 const editorialApArticlesForMonth = async ({
   month,
-  fetchText = defaultFetchText,
+  fetchText = backfillFetchText,
   sleepMs = 0,
   sleep = defaultSleep,
   onProgress,
@@ -496,7 +309,7 @@ export const apNewsBackfillAdapter: BackfillAdapter = {
   name: "AP News",
   fetchArticles: async ({
     date,
-    fetchText = defaultFetchText,
+    fetchText = backfillFetchText,
     sleepMs = 0,
     sleep = defaultSleep,
     onApProgress,
@@ -519,5 +332,3 @@ export const apNewsBackfillAdapter: BackfillAdapter = {
     return articles.filter((article) => article.published_at?.startsWith(date));
   },
 };
-
-export const backfillAdapters = [nprBackfillAdapter, apNewsBackfillAdapter];

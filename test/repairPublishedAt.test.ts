@@ -3,7 +3,7 @@ import db from "../src/db";
 import {
   getRepairableArticles,
   repairPublishedAtForArticles,
-} from "../src/backfill/repairPublishedAt";
+} from "../src/backfill/repair/publishedAt";
 import { insertArticle } from "../src/models/article";
 import type { Article } from "../src/models/article";
 

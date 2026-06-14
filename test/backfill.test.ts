@@ -381,6 +381,30 @@ describe("backfill adapters", () => {
     expect(requireAp).toBe(false);
   });
 
+  it("uses AP detail page titles when the sitemap has no title", async () => {
+    clearApMonthArticlesCache();
+
+    const articles = await apNewsBackfillAdapter.fetchArticles({
+      date: "2024-05-01",
+      fetchText: async (url) => {
+        if (url === "https://apnews.com/sitemap.xml") {
+          return apSitemapIndex;
+        }
+
+        if (url === "https://apnews.com/ap-sitemap-202405.xml") {
+          return apSitemap;
+        }
+
+        return `<meta property="og:title" content="An Older AP Story With Enough Words From Detail Page">
+          <meta property="article:published_time" content="2024-05-01T09:00:00-04:00">`;
+      },
+    });
+
+    expect(articles[0]?.title).toBe(
+      "An Older AP Story With Enough Words From Detail Page",
+    );
+  });
+
   it("filters daily AP articles by detail-page published date", async () => {
     const daySitemap = `<?xml version="1.0" encoding="UTF-8"?>
   <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

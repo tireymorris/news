@@ -20,6 +20,40 @@ const parseDate = (value: string): string | null => {
   return date.toISOString();
 };
 
+const decodeHtml = (value: string): string =>
+  load(`<textarea>${value}</textarea>`)("textarea").text();
+
+const textFromJsonLd = (value: unknown, field: string): string | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const text = textFromJsonLd(item, field);
+      if (text) {
+        return text;
+      }
+    }
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const direct = record[field];
+  if (typeof direct === "string" && direct.trim()) {
+    return decodeHtml(direct.trim());
+  }
+
+  for (const nested of Object.values(record)) {
+    const text = textFromJsonLd(nested, field);
+    if (text) {
+      return text;
+    }
+  }
+
+  return null;
+};
+
 const dateFromJsonLd = (value: unknown): string | null => {
   if (!value || typeof value !== "object") {
     return null;
@@ -84,6 +118,35 @@ export const extractPublishedAtFromHtml = (html: string): string | null => {
     if (date) {
       return date;
     }
+  }
+
+  return null;
+};
+
+export const extractTitleFromHtml = (html: string): string | null => {
+  const $ = load(html);
+
+  for (const element of $('script[type="application/ld+json"]').toArray()) {
+    try {
+      const headline = textFromJsonLd(JSON.parse($(element).text()), "headline");
+      if (headline) {
+        return headline;
+      }
+    } catch {
+      // Ignore invalid JSON-LD blocks.
+    }
+  }
+
+  const metaTitle =
+    $('meta[property="og:title"]').attr("content") ||
+    $('meta[name="twitter:title"]').attr("content");
+  if (metaTitle?.trim()) {
+    return decodeHtml(metaTitle.trim());
+  }
+
+  const pageTitle = $("h1").first().text().trim();
+  if (pageTitle) {
+    return pageTitle;
   }
 
   return null;

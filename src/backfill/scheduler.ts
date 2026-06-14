@@ -4,7 +4,7 @@ export interface RetryEntry {
   lastAttemptMs: number;
 }
 
-export interface MonthlyState {
+export interface BackfillState {
   completed: string[];
   retry: Record<string, RetryEntry>;
 }
@@ -21,36 +21,38 @@ export const sleep = (milliseconds: number) =>
 export const isReadyForRetry = (entry: RetryEntry, now = Date.now()): boolean =>
   now >= entry.lastAttemptMs + retryDelayMs(entry.attempts);
 
-export const selectNextMonth = (
-  months: string[],
+export const selectNextPending = (
+  items: string[],
   completed: Set<string>,
   retry: Record<string, RetryEntry>,
   now = Date.now(),
 ): string | null => {
-  const incomplete = months.filter((month) => !completed.has(month));
-  const fresh = incomplete.filter((month) => !retry[month]);
+  const incomplete = items.filter((item) => !completed.has(item));
+  const fresh = incomplete.filter((item) => !retry[item]);
   if (fresh.length > 0) {
     return fresh[0];
   }
 
   const dueRetries = incomplete
-    .filter((month) => retry[month] && isReadyForRetry(retry[month], now))
+    .filter((item) => retry[item] && isReadyForRetry(retry[item], now))
     .sort((left, right) => retry[left].attempts - retry[right].attempts);
 
   return dueRetries[0] ?? null;
 };
 
+export const selectNextMonth = selectNextPending;
+
 export const retryWaitMs = (
-  months: string[],
+  items: string[],
   completed: Set<string>,
   retry: Record<string, RetryEntry>,
   now = Date.now(),
 ): number => {
-  const incomplete = months.filter((month) => !completed.has(month));
+  const incomplete = items.filter((item) => !completed.has(item));
   const waiting = incomplete
-    .filter((month) => retry[month] && !isReadyForRetry(retry[month], now))
-    .map((month) => {
-      const entry = retry[month];
+    .filter((item) => retry[item] && !isReadyForRetry(retry[item], now))
+    .map((item) => {
+      const entry = retry[item];
       return entry.lastAttemptMs + retryDelayMs(entry.attempts) - now;
     });
 
@@ -61,16 +63,16 @@ export const retryWaitMs = (
   return Math.max(0, Math.min(...waiting));
 };
 
-export const normalizeMonthlyState = (raw: {
+export const normalizeState = (raw: {
   completed?: string[];
   retry?: Record<string, RetryEntry>;
   failed?: Record<string, string[]>;
-}): MonthlyState => {
+}): BackfillState => {
   const retry = raw.retry ?? {};
 
-  for (const [month, issues] of Object.entries(raw.failed ?? {})) {
-    if (!retry[month]) {
-      retry[month] = {
+  for (const [item, issues] of Object.entries(raw.failed ?? {})) {
+    if (!retry[item]) {
+      retry[item] = {
         issues,
         attempts: 1,
         lastAttemptMs: 0,
@@ -84,18 +86,20 @@ export const normalizeMonthlyState = (raw: {
   };
 };
 
+export const normalizeMonthlyState = normalizeState;
+
 export const enqueueRetry = (
   retry: Record<string, RetryEntry>,
-  month: string,
+  item: string,
   issues: string[],
   now = Date.now(),
 ): RetryEntry => {
-  const previous = retry[month];
+  const previous = retry[item];
   const entry: RetryEntry = {
     issues,
     attempts: (previous?.attempts ?? 0) + 1,
     lastAttemptMs: now,
   };
-  retry[month] = entry;
+  retry[item] = entry;
   return entry;
 };

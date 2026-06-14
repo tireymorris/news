@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { extractPublishedAtFromHtml } from "../src/util/publishedDate";
+import { extractPublishedAtFromHtml, extractTitleFromHtml } from "../src/util/publishedDate";
 
 describe("extractPublishedAtFromHtml", () => {
   it("reads JSON-LD datePublished", () => {
@@ -30,5 +30,23 @@ describe("extractPublishedAtFromHtml", () => {
     const html = `<div class="story-head"><p>By Someone</p><p>Saturday, June 13, 2026 • 8:00 AM EDT</p></div>`;
 
     expect(extractPublishedAtFromHtml(html)).toBe("2026-06-13T12:00:00.000Z");
+  });
+});
+
+describe("extractTitleFromHtml", () => {
+  it("reads JSON-LD headline", () => {
+    const html = `<script type="application/ld+json">{"@type":"NewsArticle","headline":"Trump's Mideast trip dodges human rights concerns"}</script>`;
+
+    expect(extractTitleFromHtml(html)).toBe(
+      "Trump's Mideast trip dodges human rights concerns",
+    );
+  });
+
+  it("reads og:title with HTML entities", () => {
+    const html = `<meta property="og:title" content="Trump&#x27;s Mideast trip splashes out on deals and diplomacy but is quiet on human rights">`;
+
+    expect(extractTitleFromHtml(html)).toBe(
+      "Trump's Mideast trip splashes out on deals and diplomacy but is quiet on human rights",
+    );
   });
 });
